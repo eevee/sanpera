@@ -1,11 +1,10 @@
 from libc cimport string
 cimport cpython.string
-from graphick._magick_api cimport _constitute, _error, _image, _list, _magick, _resize
+
+from sanpera._magick_api cimport _constitute, _error, _image, _list, _magick, _resize
+import sanpera.core
 
 import sys
-
-cdef extern from "Python.h":
-    char* Py_GetProgramFullPath()
 
 cpdef int gm_demo_program():
     cdef _error.ExceptionInfo exception
@@ -19,8 +18,6 @@ cpdef int gm_demo_program():
 
     # Initialize the image info structure and read the _list of files
     # provided by the user as a image sequence
-
-    _magick.InitializeMagick(Py_GetProgramFullPath())
 
     _error.GetExceptionInfo(&exception)
     image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)

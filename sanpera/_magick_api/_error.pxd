@@ -1,4 +1,4 @@
-from graphick._magick_api cimport _common
+from sanpera._magick_api cimport _common
 
 cdef extern from "magick/error.h":
     ctypedef struct ExceptionInfo:

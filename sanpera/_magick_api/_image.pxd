@@ -1,4 +1,4 @@
-from graphick._magick_api cimport _common, _error
+from sanpera._magick_api cimport _common, _error
 
 cdef extern from "magick/image.h":
     ctypedef struct Image:

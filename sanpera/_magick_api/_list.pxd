@@ -1,4 +1,4 @@
-from graphick._magick_api cimport _common, _image
+from sanpera._magick_api cimport _common, _image
 
 cdef extern from "magick/list.h":
     void AppendImageToList(_image.Image**, _image.Image *)

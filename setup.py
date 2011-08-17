@@ -6,7 +6,9 @@ setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=[
         # XXX this takes a lot of external effort to work.  how to fix durr ??
-        Extension('graphick.demo_program', ['graphick/demo_program.pyx'],
-            libraries=['GraphicsMagick'])
+        Extension('sanpera.core', ['sanpera/core.pyx'],
+            libraries=['GraphicsMagick']),
+        Extension('sanpera.demo_program', ['sanpera/demo_program.pyx'],
+            libraries=['GraphicsMagick']),
     ],
 )
