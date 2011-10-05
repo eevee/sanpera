@@ -13,3 +13,6 @@ cdef extern from "magick/magick_config.h":
 cdef extern from "magick/common.h":
     ctypedef unsigned int MagickPassFail
     ctypedef unsigned int MagickBool
+
+cdef extern from "magick/forward.h":
+    pass

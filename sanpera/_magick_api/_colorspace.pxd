@@ -1,3 +1,5 @@
+cimport sanpera._magick_api._common
+
 cdef extern from "magick/colorspace.h":
     ctypedef enum ColorspaceType:
         UndefinedColorspace

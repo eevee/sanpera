@@ -33,7 +33,5 @@ setup(
     ext_modules=[
         Extension('sanpera.core', ['sanpera/core.pyx'],
             **extension_kwargs),
-        Extension('sanpera.demo_program', ['sanpera/demo_program.pyx'],
-            **extension_kwargs),
     ],
 )
