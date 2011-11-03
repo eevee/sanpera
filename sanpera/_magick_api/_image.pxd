@@ -397,6 +397,8 @@ cdef extern from "magick/image.h":
 
         # plus a lot of private stuff
 
+        long reference_count  # shh, don't tell  :)
+
     ctypedef struct FILE  # XXX need to do something about this
 
     ctypedef struct ImageInfo:
