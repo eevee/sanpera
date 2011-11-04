@@ -1,5 +1,6 @@
 cimport libc.string
-from sanpera._magick_api cimport _constitute, _error, _image, _list, _magick, _resize
+cimport libc.stdio
+from sanpera._magick_api cimport _blob, _constitute, _error, _image, _list, _magick, _resize
 import atexit
 
 
@@ -12,6 +13,10 @@ _magick.InitializeMagick(Py_GetProgramFullPath())
 def _shutdown():
     _magick.DestroyMagick()
 atexit.register(_shutdown)
+
+
+cdef extern from "stdio.h":
+    libc.stdio.FILE* fdopen(int fd, char *mode)
 
 
 
@@ -97,7 +102,6 @@ cdef RawFrame _RawFrame_factory(_image.Image* frame):
     return self
 
 
-
 cdef class Image:
     """Represents a stack of zero or more frames."""
 
@@ -124,22 +128,53 @@ cdef class Image:
 
     ### Constructors
 
+    cdef _consume_image_list(self, _image.Image* image_list):
+        while image_list != NULL:
+            self._raw_append(image_list)
+            _list.RemoveFirstImageFromList(&image_list)
+
     @classmethod
     def from_filename(type cls, bytes filename):
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
-        # XXX OH NO THIS IS AWFUL
-        # TODO ReadImages?
-        libc.string.strcpy(image_info.filename, <char*>filename)
+        # ReadImage does a lot of magick (ho ho!) with the filename, from
+        # special "protocol" prefixes to extension detection to stdin to
+        # piping.  So fuck all that and just open the damn file.
+        return cls.from_file(open(filename))
 
-        cdef _image.Image* image
+    @classmethod
+    def from_file(type cls, fileobj):
+        # TODO check that fileobj is actually file-like and does fileno()
+        # TODO check that fileobj is open with the right mode
+        # TODO or just check the return value of fdopen or whatever.
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
+        image_info.file = fdopen(fileobj.fileno(), "r")
+
+        cdef _image.Image* image = NULL
         cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-             image = _constitute.ReadImage(image_info, &exc.exception)
+        try:
+            with ExceptionCatcher() as exc:
+                image = _constitute.ReadImage(image_info, &exc.exception)
+        finally:
+            #image_info.file = NULL
+            _image.DestroyImageInfo(image_info)
 
         cdef Image self = cls()
-        while image != NULL:
-            self._raw_append(image)
-            _list.RemoveFirstImageFromList(&image)
+        self._consume_image_list(image)
+        return self
+
+    @classmethod
+    def from_buffer(type cls, bytes buf):
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
+
+        cdef _image.Image* image = NULL
+        cdef ExceptionCatcher exc
+        try:
+            with ExceptionCatcher() as exc:
+                image = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), &exc.exception)
+        finally:
+            _image.DestroyImageInfo(image_info)
+
+        cdef Image self = cls()
+        self._consume_image_list(image)
         return self
 
 

@@ -10,6 +10,9 @@ tried to preserve the header file arrangement in a less broken manner.
 cdef extern from "magick/magick_config.h":
     pass
 
+cdef extern from "magick/magick_types.h":
+    pass
+
 cdef extern from "magick/common.h":
     ctypedef unsigned int MagickPassFail
     ctypedef unsigned int MagickBool

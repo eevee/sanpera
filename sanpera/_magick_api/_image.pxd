@@ -368,7 +368,7 @@ cdef extern from "magick/image.h":
         double y_resolution
         RectangleInfo page
         RectangleInfo tile_info
-        double blue
+        double blur
         double fuzz
         FilterTypes filter
         InterlaceType interlace
