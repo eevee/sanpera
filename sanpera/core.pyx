@@ -7,7 +7,7 @@ included, not imported.
 
 cimport libc.string
 cimport libc.stdio
-from sanpera._magick_api cimport _blob, _constitute, _error, _image, _list, _magick, _resize
+from sanpera._magick_api cimport _blob, _constitute, _error, _image, _list, _magick, _memory, _resize
 import atexit
 
 
@@ -59,8 +59,15 @@ cdef class RawFrame:
 
     def __cinit__(self):
         self._img = NULL
+        print "cinit", id(self)
 
     def __dealloc__(self):
+        print "dealloc", id(self), self._img.reference_count
+        # Unlink this image from any others
+        # TODO maybe put a bit of effort into making the double links more consistent
+        self._img.previous = NULL
+        self._img.next = NULL
+
         _image.DestroyImage(self._img)
         self._img = NULL
 
@@ -214,11 +221,57 @@ cdef class Image:
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.adjoin = 1  # force writing a single file
-        # XXX OH NO THIS IS AWFUL
-        # XXX this relies on GraphicsMagick's filename parsing.  eh.
         cdef _image.Image* head_image = (<RawFrame>self._frames[0])._img
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
             _constitute.WriteImages(image_info, head_image, filename, &exc.exception)
 
         _image.DestroyImageInfo(image_info)
+
+    def write_file(self, fileobj not None):
+        # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
+        # XXX what if there are no images
+
+        # First fix up the image links
+        self.link_frames()
+
+        # Gimme a blank image_info
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        image_info.adjoin = 1  # force writing a single file
+        image_info.file = fdopen(fileobj.fileno(), "w")
+        cdef _image.Image* head_image = (<RawFrame>self._frames[0])._img
+        cdef ExceptionCatcher exc
+        with ExceptionCatcher() as exc:
+            # XXX the exception that gets set is in head_image; oops
+            _constitute.WriteImage(image_info, head_image)
+
+        _image.DestroyImageInfo(image_info)
+
+    def to_buffer(self):
+        # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
+        # XXX what if there are no images
+
+        # First fix up the image links
+        self.link_frames()
+
+        # Gimme a blank image_info
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        image_info.adjoin = 1  # force writing a single file
+        cdef _image.Image* head_image = (<RawFrame>self._frames[0])._img
+        cdef ExceptionCatcher exc
+        cdef void* cbuf = NULL
+        cdef size_t length = 0
+        with ExceptionCatcher() as exc:
+            cbuf = _blob.ImageToBlob(image_info, head_image, &length, &exc.exception)
+
+        cdef bytes buf
+        try:
+            buf = (<unsigned char*> cbuf)[:length]
+        finally:
+            pass
+            #_memory.MagickFree(cbuf)
+
+        # TODO leak ahoy
+        #_image.DestroyImageInfo(image_info)
+
+        return buf
