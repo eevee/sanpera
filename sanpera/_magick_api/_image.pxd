@@ -388,6 +388,7 @@ cdef extern from "magick/image.h":
         # XXX these are arrays
         char* filename
         char* magick_filename  # original filename
+        char* magick
 
         unsigned long magick_columns
         unsigned long magick_rows
@@ -396,8 +397,6 @@ cdef extern from "magick/image.h":
         Image* next
 
         # plus a lot of private stuff
-
-        long reference_count  # shh, don't tell  :)
 
     ctypedef struct FILE  # XXX need to do something about this
 
