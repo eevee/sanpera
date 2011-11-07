@@ -1,296 +1,251 @@
 from sanpera._magick_api cimport _common
+from sanpera._magick_api cimport _error, _image
+from sanpera._wand_api cimport _common as _common2
+from sanpera._wand_api cimport _drawing, _pixel
+
+cimport libc.stdio
 
 # TODO: finish this, because fuck core.
 # TODO: the biggest problem here is dealing with lists, for example, the default example program of sticking together a bunch of read images and writing it out as a gif.  the old and new images all want to refer to the same frames.  what do i do about that?  the same approach i have now, and rewrite the magickwand when necessary?  for all i know that's what's breaking me now!
 
 cdef extern from "wand/magick_wand.h":
+    ctypedef struct MagickWand:
+        # Opaque pointer
+        pass
 
-    typedef struct _MagickWand
-      MagickWand;
+    char* MagickDescribeImage(MagickWand*)
+    char* MagickGetConfigureInfo(MagickWand*, char*)
+    char* MagickGetException(MagickWand*, _error.ExceptionType*)
+    char* MagickGetFilename(MagickWand*)
+    char* MagickGetImageAttribute(MagickWand*, char*)
+    char* MagickGetImageFilename(MagickWand*)
+    char* MagickGetImageFormat(MagickWand*)
+    char* MagickGetImageSignature(MagickWand*)
+    char** MagickQueryFonts(char*, unsigned long*)
+    char** MagickQueryFormats(char*, unsigned long*)
 
-    char
-      *MagickDescribeImage(MagickWand *),
-      *MagickGetConfigureInfo(MagickWand *,char *),
-      *MagickGetException(MagickWand *,ExceptionType *),
-      *MagickGetFilename(MagickWand *),
-      *MagickGetImageAttribute(MagickWand *, char *),
-      *MagickGetImageFilename(MagickWand *),
-      *MagickGetImageFormat(MagickWand *),
-      *MagickGetImageSignature(MagickWand *),
-      **MagickQueryFonts(char *,unsigned long *),
-      **MagickQueryFormats(char *,unsigned long *);
+    _image.CompositeOperator MagickGetImageCompose(MagickWand*)
 
-    CompositeOperator
-      MagickGetImageCompose(MagickWand *);
+    _image.ColorspaceType MagickGetImageColorspace(MagickWand*)
 
-    ColorspaceType
-      MagickGetImageColorspace(MagickWand *);
+    _image.CompressionType MagickGetImageCompression(MagickWand*)
 
-    CompressionType
-      MagickGetImageCompression(MagickWand *);
+    char* MagickGetCopyright()
+    char* MagickGetHomeURL()
+    char* MagickGetPackageName()
+    char* MagickGetQuantumDepth(unsigned long*)
+    char* MagickGetReleaseDate()
+    char* MagickGetVersion(unsigned long*)
 
-    char
-      *MagickGetCopyright(void),
-      *MagickGetHomeURL(void),
-      *MagickGetPackageName(void),
-      *MagickGetQuantumDepth(unsigned long *),
-      *MagickGetReleaseDate(void),
-      *MagickGetVersion(unsigned long *);
+    _image.DisposeType MagickGetImageDispose(MagickWand*)
 
-    DisposeType
-      MagickGetImageDispose(MagickWand *);
+    double MagickGetImageGamma(MagickWand*)
+    double MagickGetImageFuzz(MagickWand*)
+    double* MagickGetSamplingFactors(MagickWand*, unsigned long*)
+    double* MagickQueryFontMetrics(MagickWand*, _drawing.DrawingWand*, char*)
 
-    double
-      MagickGetImageGamma(MagickWand *),
-      MagickGetImageFuzz(MagickWand *),
-      *MagickGetSamplingFactors(MagickWand *,unsigned long *),
-      *MagickQueryFontMetrics(MagickWand *,DrawingWand *,char *);
+    _image.ImageType MagickGetImageType(MagickWand*)
 
-    ImageType
-      MagickGetImageType(MagickWand *);
+    _image.InterlaceType MagickGetImageInterlaceScheme(MagickWand*)
 
-    InterlaceType
-      MagickGetImageInterlaceScheme(MagickWand *);
+    long MagickGetImageIndex(MagickWand*)
 
-    long
-      MagickGetImageIndex(MagickWand *);
+    #MagickSizeType MagickGetImageSize(MagickWand*)
 
-    MagickSizeType
-      MagickGetImageSize(MagickWand *);
+    MagickWand* CloneMagickWand(MagickWand*)
+    MagickWand* MagickAppendImages(MagickWand*, unsigned int)
+    MagickWand* MagickAverageImages(MagickWand*)
+    MagickWand* MagickCoalesceImages(MagickWand*)
+    MagickWand* MagickCompareImageChannels(MagickWand*, MagickWand*, _image.ChannelType, MetricType, double*)
+    MagickWand* MagickCompareImages(MagickWand*, MagickWand*, MetricType, double*)
+    MagickWand* MagickDeconstructImages(MagickWand*)
+    MagickWand* MagickFlattenImages(MagickWand*)
+    MagickWand* MagickFxImage(MagickWand*, char*)
+    MagickWand* MagickFxImageChannel(MagickWand*, _image.ChannelType, char*)
+    MagickWand* MagickGetImage(MagickWand*)
+    MagickWand* MagickMorphImages(MagickWand*, unsigned long)
+    MagickWand* MagickMosaicImages(MagickWand*)
+    MagickWand* MagickMontageImage(MagickWand*, _drawing.DrawingWand*, char*, char*, MontageMode, char*)
+    MagickWand* MagickPreviewImages(MagickWand*wand, PreviewType)
+    MagickWand* MagickSteganoImage(MagickWand*, MagickWand*, long)
+    MagickWand* MagickStereoImage(MagickWand*, MagickWand*)
+    MagickWand* MagickTextureImage(MagickWand*, MagickWand*)
+    MagickWand* MagickTransformImage(MagickWand*, char*, char*)
+    MagickWand* NewMagickWand()
 
-    MagickWand
-      *CloneMagickWand(MagickWand *),
-      *MagickAppendImages(MagickWand *,unsigned int),
-      *MagickAverageImages(MagickWand *),
-      *MagickCoalesceImages(MagickWand *),
-      *MagickCompareImageChannels(MagickWand *,MagickWand *,ChannelType,
-        MetricType,double *),
-      *MagickCompareImages(MagickWand *,MagickWand *,MetricType,
-        double *),
-      *MagickDeconstructImages(MagickWand *),
-      *MagickFlattenImages(MagickWand *),
-      *MagickFxImage(MagickWand *,char *),
-      *MagickFxImageChannel(MagickWand *,ChannelType,char *),
-      *MagickGetImage(MagickWand *),
-      *MagickMorphImages(MagickWand *,unsigned long),
-      *MagickMosaicImages(MagickWand *),
-      *MagickMontageImage(MagickWand *,DrawingWand *,char *,
-        char *,MontageMode,char *),
-      *MagickPreviewImages(MagickWand *wand,PreviewType),
-      *MagickSteganoImage(MagickWand *,MagickWand *,long),
-      *MagickStereoImage(MagickWand *,MagickWand *),
-      *MagickTextureImage(MagickWand *,MagickWand *),
-      *MagickTransformImage(MagickWand *,char *,char *),
-      *NewMagickWand(void);
+    _pixel.PixelWand** MagickGetImageHistogram(MagickWand*, unsigned long*)
 
-    PixelWand
-      **MagickGetImageHistogram(MagickWand *,unsigned long *);
+    _image.RenderingIntent MagickGetImageRenderingIntent(MagickWand*)
 
-    RenderingIntent
-      MagickGetImageRenderingIntent(MagickWand *);
+    _image.ResolutionType MagickGetImageUnits(MagickWand*)
 
-    ResolutionType
-      MagickGetImageUnits(MagickWand *);
+    unsigned int DestroyMagickWand(MagickWand*)
+    unsigned int MagickAdaptiveThresholdImage(MagickWand*, unsigned long, unsigned long, long)
+    unsigned int MagickAddImage(MagickWand*, MagickWand*)
+    unsigned int MagickAddNoiseImage(MagickWand*, NoiseType)
+    unsigned int MagickAffineTransformImage(MagickWand*, _drawing.DrawingWand*)
+    unsigned int MagickAnnotateImage(MagickWand*, _drawing.DrawingWand*, double, double, double, char*)
+    unsigned int MagickAnimateImages(MagickWand*, char*)
+    unsigned int MagickBlackThresholdImage(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickBlurImage(MagickWand*, double, double)
+    unsigned int MagickBorderImage(MagickWand*, _pixel.PixelWand*, unsigned long, unsigned long)
+    unsigned int MagickCdlImage(MagickWand*wand, char*cdl)
+    unsigned int MagickCharcoalImage(MagickWand*, double, double)
+    unsigned int MagickChopImage(MagickWand*, unsigned long, unsigned long, long, long)
+    unsigned int MagickClipImage(MagickWand*)
+    unsigned int MagickClipPathImage(MagickWand*, char*, unsigned int)
+    unsigned int MagickColorFloodfillImage(MagickWand*, _pixel.PixelWand*, double, _pixel.PixelWand*, long, long)
+    unsigned int MagickColorizeImage(MagickWand*, _pixel.PixelWand*, _pixel.PixelWand*)
+    unsigned int MagickCommentImage(MagickWand*, char*)
+    unsigned int MagickCompositeImage(MagickWand*, MagickWand*, _image.CompositeOperator, long, long)
+    unsigned int MagickContrastImage(MagickWand*, unsigned int)
+    unsigned int MagickConvolveImage(MagickWand*, unsigned long, double*)
+    unsigned int MagickCropImage(MagickWand*, unsigned long, unsigned long, long, long)
+    unsigned int MagickCycleColormapImage(MagickWand*, long)
+    unsigned int MagickDespeckleImage(MagickWand*)
+    unsigned int MagickDisplayImage(MagickWand*, char*)
+    unsigned int MagickDisplayImages(MagickWand*, char*)
+    unsigned int MagickDrawImage(MagickWand*, _drawing.DrawingWand*)
+    unsigned int MagickEdgeImage(MagickWand*, double)
+    unsigned int MagickEmbossImage(MagickWand*, double, double)
+    unsigned int MagickEnhanceImage(MagickWand*)
+    unsigned int MagickEqualizeImage(MagickWand*)
+    unsigned int MagickFlipImage(MagickWand*)
+    unsigned int MagickFlopImage(MagickWand*)
+    unsigned int MagickFrameImage(MagickWand*, _pixel.PixelWand*, unsigned long, unsigned long, long, long)
+    unsigned int MagickGammaImage(MagickWand*, double)
+    unsigned int MagickGammaImageChannel(MagickWand*, _image.ChannelType, double)
+    unsigned int MagickGetImageBackgroundColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickGetImageBluePrimary(MagickWand*, double*, double*)
+    unsigned int MagickGetImageBorderColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickGetImageBoundingBox(MagickWand*wand, double fuzz, unsigned long*width, unsigned long*height, long*x, long*y)
+    unsigned int MagickGetImageChannelExtrema(MagickWand*, _image.ChannelType, unsigned long*, unsigned long*)
+    unsigned int MagickGetImageChannelMean(MagickWand*, _image.ChannelType, double*, double*)
+    unsigned int MagickGetImageColormapColor(MagickWand*, unsigned long, _pixel.PixelWand*)
+    unsigned int MagickGetImageExtrema(MagickWand*, unsigned long*, unsigned long*)
+    unsigned int MagickGetImageGreenPrimary(MagickWand*, double*, double*)
+    unsigned int MagickGetImageMatteColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickGetImagePixels(MagickWand*, long, long, unsigned long, unsigned long, char*, StorageType, unsigned char*)
+    unsigned int MagickGetImageRedPrimary(MagickWand*, double*, double*)
+    unsigned int MagickGetImageResolution(MagickWand*, double*, double*)
+    unsigned int MagickGetImageWhitePoint(MagickWand*, double*, double*)
+    unsigned int MagickGetSize(MagickWand*, unsigned long*, unsigned long*)
+    unsigned int MagickHaldClutImage(MagickWand*wand, MagickWand*clut_wand)
+    unsigned int MagickHasNextImage(MagickWand*)
+    unsigned int MagickHasPreviousImage(MagickWand*)
+    unsigned int MagickImplodeImage(MagickWand*, double)
+    unsigned int MagickLabelImage(MagickWand*, char*)
+    unsigned int MagickLevelImage(MagickWand*, double, double, double)
+    unsigned int MagickLevelImageChannel(MagickWand*, _image.ChannelType, double, double, double)
+    unsigned int MagickMagnifyImage(MagickWand*)
+    unsigned int MagickMapImage(MagickWand*, MagickWand*, unsigned int)
+    unsigned int MagickMatteFloodfillImage(MagickWand*, Quantum, double, _pixel.PixelWand*, long, long)
+    unsigned int MagickMedianFilterImage(MagickWand*, double)
+    unsigned int MagickMinifyImage(MagickWand*)
+    unsigned int MagickModulateImage(MagickWand*, double, double, double)
+    unsigned int MagickMotionBlurImage(MagickWand*, double, double, double)
+    unsigned int MagickNegateImage(MagickWand*, unsigned int)
+    unsigned int MagickNegateImageChannel(MagickWand*, _image.ChannelType, unsigned int)
+    unsigned int MagickNextImage(MagickWand*)
+    unsigned int MagickNormalizeImage(MagickWand*)
+    unsigned int MagickOilPaintImage(MagickWand*, double)
+    unsigned int MagickOpaqueImage(MagickWand*, _pixel.PixelWand*, _pixel.PixelWand*, double)
+    unsigned int MagickPingImage(MagickWand*, char*)
+    unsigned int MagickPreviousImage(MagickWand*)
+    unsigned int MagickProfileImage(MagickWand*, char*, unsigned char*, unsigned long)
+    unsigned int MagickQuantizeImage(MagickWand*, unsigned long, _image.ColorspaceType, unsigned long, unsigned int, unsigned int)
+    unsigned int MagickQuantizeImages(MagickWand*, unsigned long, _image.ColorspaceType, unsigned long, unsigned int, unsigned int)
+    unsigned int MagickRadialBlurImage(MagickWand*, double)
+    unsigned int MagickRaiseImage(MagickWand*, unsigned long, unsigned long, long, long, unsigned int)
+    unsigned int MagickReadImage(MagickWand*, char*)
+    unsigned int MagickReadImageBlob(MagickWand*, unsigned char*, size_t length)
+    unsigned int MagickReadImageFile(MagickWand*, libc.stdio.FILE*)
+    unsigned int MagickReduceNoiseImage(MagickWand*, double)
+    unsigned int MagickRelinquishMemory(void*)
+    unsigned int MagickRemoveImage(MagickWand*)
+    unsigned int MagickResampleImage(MagickWand*, double, double, FilterTypes, double)
+    unsigned int MagickResizeImage(MagickWand*, unsigned long, unsigned long, FilterTypes, double)
+    unsigned int MagickRollImage(MagickWand*, long, long)
+    unsigned int MagickRotateImage(MagickWand*, _pixel.PixelWand*, double)
+    unsigned int MagickSampleImage(MagickWand*, unsigned long, unsigned long)
+    unsigned int MagickScaleImage(MagickWand*, unsigned long, unsigned long)
+    unsigned int MagickSeparateImageChannel(MagickWand*, _image.ChannelType)
+    unsigned int MagickSetCompressionQuality(MagickWand*wand, unsigned long quality)
+    unsigned int MagickSetFilename(MagickWand*, char*)
+    unsigned int MagickSetImage(MagickWand*, MagickWand*)
+    unsigned int MagickSetImageAttribute(MagickWand*, char*, char*)
+    unsigned int MagickSetImageBackgroundColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickSetImageBluePrimary(MagickWand*, double, double)
+    unsigned int MagickSetImageBorderColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickSetImageChannelDepth(MagickWand*, _image.ChannelType, unsigned long)
+    unsigned int MagickSetImageColormapColor(MagickWand*, unsigned long, _pixel.PixelWand*)
+    unsigned int MagickSetImageCompose(MagickWand*, _image.CompositeOperator)
+    unsigned int MagickSetImageCompression(MagickWand*, _image.CompressionType)
+    unsigned int MagickSetImageDelay(MagickWand*, unsigned long)
+    unsigned int MagickSetImageDepth(MagickWand*, unsigned long)
+    unsigned int MagickSetImageDispose(MagickWand*, _image.DisposeType)
+    unsigned int MagickSetImageColorspace(MagickWand*, _image.ColorspaceType)
+    unsigned int MagickSetImageGreenPrimary(MagickWand*, double, double)
+    unsigned int MagickSetImageGamma(MagickWand*, double)
+    unsigned int MagickSetImageFilename(MagickWand*, char*)
+    unsigned int MagickSetImageFormat(MagickWand*, char*)
+    unsigned int MagickSetImageFuzz(MagickWand*, double)
+    unsigned int MagickSetImageIndex(MagickWand*, long)
+    unsigned int MagickSetImageInterlaceScheme(MagickWand*, _image.InterlaceType)
+    unsigned int MagickSetImageIterations(MagickWand*, unsigned long)
+    unsigned int MagickSetImageMatteColor(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickSetImageOption(MagickWand*, char*, char*, char*)
+    unsigned int MagickSetImagePixels(MagickWand*, long, long, unsigned long, unsigned long, char*, StorageType, unsigned char*)
+    unsigned int MagickSetImageRedPrimary(MagickWand*, double, double)
+    unsigned int MagickSetImageRenderingIntent(MagickWand*, _image.RenderingIntent)
+    unsigned int MagickSetImageResolution(MagickWand*, double, double)
+    unsigned int MagickSetImageScene(MagickWand*, unsigned long)
+    unsigned int MagickSetImageType(MagickWand*, _image.ImageType)
+    unsigned int MagickSetImageUnits(MagickWand*, _image.ResolutionType)
+    #unsigned int MagickSetImageVirtualPixelMethod(MagickWand*, VirtualPixelMethod)
+    unsigned int MagickSetPassphrase(MagickWand*, char*)
+    unsigned int MagickSetImageProfile(MagickWand*, char*, unsigned char*, unsigned long)
+    unsigned int MagickSetResolution(MagickWand*wand, double x_resolution, double y_resolution)
+    unsigned int MagickSetResolutionUnits(MagickWand*wand, _image.ResolutionType units)
+    #unsigned int MagickSetResourceLimit(ResourceType type, unsigned long limit)
+    unsigned int MagickSetSamplingFactors(MagickWand*, unsigned long, double*)
+    unsigned int MagickSetSize(MagickWand*, unsigned long, unsigned long)
+    unsigned int MagickSetImageWhitePoint(MagickWand*, double, double)
+    unsigned int MagickSetInterlaceScheme(MagickWand*, _image.InterlaceType)
+    unsigned int MagickSharpenImage(MagickWand*, double, double)
+    unsigned int MagickShaveImage(MagickWand*, unsigned long, unsigned long)
+    unsigned int MagickShearImage(MagickWand*, _pixel.PixelWand*, double, double)
+    unsigned int MagickSolarizeImage(MagickWand*, double)
+    unsigned int MagickSpreadImage(MagickWand*, double)
+    unsigned int MagickStripImage(MagickWand*)
+    unsigned int MagickSwirlImage(MagickWand*, double)
+    unsigned int MagickTintImage(MagickWand*, _pixel.PixelWand*, _pixel.PixelWand*)
+    unsigned int MagickThresholdImage(MagickWand*, double)
+    unsigned int MagickThresholdImageChannel(MagickWand*, _image.ChannelType, double)
+    unsigned int MagickTransparentImage(MagickWand*, _pixel.PixelWand*, Quantum, double)
+    unsigned int MagickTrimImage(MagickWand*, double)
+    unsigned int MagickUnsharpMaskImage(MagickWand*, double, double, double, double)
+    unsigned int MagickWaveImage(MagickWand*, double, double)
+    unsigned int MagickWhiteThresholdImage(MagickWand*, _pixel.PixelWand*)
+    unsigned int MagickWriteImage(MagickWand*, char*)
+    unsigned int MagickWriteImageFile(MagickWand*, libc.stdio.FILE*)
+    unsigned int MagickWriteImages(MagickWand*, char*, unsigned int)
 
-    unsigned int
-      DestroyMagickWand(MagickWand *),
-      MagickAdaptiveThresholdImage(MagickWand *,unsigned long,
-        unsigned long,long),
-      MagickAddImage(MagickWand *,MagickWand *),
-      MagickAddNoiseImage(MagickWand *,NoiseType),
-      MagickAffineTransformImage(MagickWand *,DrawingWand *),
-      MagickAnnotateImage(MagickWand *,DrawingWand *,double,
-        double,double,char *),
-      MagickAnimateImages(MagickWand *,char *),
-      MagickBlackThresholdImage(MagickWand *,PixelWand *),
-      MagickBlurImage(MagickWand *,double,double),
-      MagickBorderImage(MagickWand *,PixelWand *,unsigned long,
-        unsigned long),
-      MagickCdlImage(MagickWand *wand,char *cdl),
-      MagickCharcoalImage(MagickWand *,double,double),
-      MagickChopImage(MagickWand *,unsigned long,unsigned long,
-        long,long),
-      MagickClipImage(MagickWand *),
-      MagickClipPathImage(MagickWand *,char *,unsigned int),
-      MagickColorFloodfillImage(MagickWand *,PixelWand *,double,
-        PixelWand *,long,long),
-      MagickColorizeImage(MagickWand *,PixelWand *,PixelWand *),
-      MagickCommentImage(MagickWand *,char *),
-      MagickCompositeImage(MagickWand *,MagickWand *,CompositeOperator,
-        long,long),
-      MagickContrastImage(MagickWand *,unsigned int),
-      MagickConvolveImage(MagickWand *,unsigned long,double *),
-      MagickCropImage(MagickWand *,unsigned long,unsigned long,
-        long,long),
-      MagickCycleColormapImage(MagickWand *,long),
-      MagickDespeckleImage(MagickWand *),
-      MagickDisplayImage(MagickWand *,char *),
-      MagickDisplayImages(MagickWand *,char *),
-      MagickDrawImage(MagickWand *,DrawingWand *),
-      MagickEdgeImage(MagickWand *,double),
-      MagickEmbossImage(MagickWand *,double,double),
-      MagickEnhanceImage(MagickWand *),
-      MagickEqualizeImage(MagickWand *),
-      MagickFlipImage(MagickWand *),
-      MagickFlopImage(MagickWand *),
-      MagickFrameImage(MagickWand *,PixelWand *,unsigned long,
-        unsigned long,long,long),
-      MagickGammaImage(MagickWand *,double),
-      MagickGammaImageChannel(MagickWand *,ChannelType,double),
-      MagickGetImageBackgroundColor(MagickWand *,PixelWand *),
-      MagickGetImageBluePrimary(MagickWand *,double *,double *),
-      MagickGetImageBorderColor(MagickWand *,PixelWand *),
-      MagickGetImageBoundingBox(MagickWand *wand,double fuzz,
-        unsigned long *width,unsigned long *height,long *x, long *y),
-      MagickGetImageChannelExtrema(MagickWand *,ChannelType,unsigned long *,
-        unsigned long *),
-      MagickGetImageChannelMean(MagickWand *,ChannelType,double *,double *),
-      MagickGetImageColormapColor(MagickWand *,unsigned long,PixelWand *),
-      MagickGetImageExtrema(MagickWand *,unsigned long *,unsigned long *),
-      MagickGetImageGreenPrimary(MagickWand *,double *,double *),
-      MagickGetImageMatteColor(MagickWand *,PixelWand *),
-      MagickGetImagePixels(MagickWand *,long,long,unsigned long,
-        unsigned long,char *,StorageType,unsigned char *),
-      MagickGetImageRedPrimary(MagickWand *,double *,double *),
-      MagickGetImageResolution(MagickWand *,double *,double *),
-      MagickGetImageWhitePoint(MagickWand *,double *,double *),
-      MagickGetSize(MagickWand *,unsigned long *,unsigned long *),
-      MagickHaldClutImage(MagickWand *wand,MagickWand *clut_wand),
-      MagickHasNextImage(MagickWand *),
-      MagickHasPreviousImage(MagickWand *),
-      MagickImplodeImage(MagickWand *,double),
-      MagickLabelImage(MagickWand *,char *),
-      MagickLevelImage(MagickWand *,double,double,double),
-      MagickLevelImageChannel(MagickWand *,ChannelType,double,
-        double,double),
-      MagickMagnifyImage(MagickWand *),
-      MagickMapImage(MagickWand *,MagickWand *,unsigned int),
-      MagickMatteFloodfillImage(MagickWand *,Quantum,double,
-        PixelWand *,long,long),
-      MagickMedianFilterImage(MagickWand *,double),
-      MagickMinifyImage(MagickWand *),
-      MagickModulateImage(MagickWand *,double,double,double),
-      MagickMotionBlurImage(MagickWand *,double,double,double),
-      MagickNegateImage(MagickWand *,unsigned int),
-      MagickNegateImageChannel(MagickWand *,ChannelType,unsigned int),
-      MagickNextImage(MagickWand *),
-      MagickNormalizeImage(MagickWand *),
-      MagickOilPaintImage(MagickWand *,double),
-      MagickOpaqueImage(MagickWand *,PixelWand *,PixelWand *,
-        double),
-      MagickPingImage(MagickWand *,char *),
-      MagickPreviousImage(MagickWand *),
-      MagickProfileImage(MagickWand *,char *,unsigned char *,
-        unsigned long),
-      MagickQuantizeImage(MagickWand *,unsigned long,ColorspaceType,
-        unsigned long,unsigned int,unsigned int),
-      MagickQuantizeImages(MagickWand *,unsigned long,ColorspaceType,
-        unsigned long,unsigned int,unsigned int),
-      MagickRadialBlurImage(MagickWand *,double),
-      MagickRaiseImage(MagickWand *,unsigned long,unsigned long,
-        long,long,unsigned int),
-      MagickReadImage(MagickWand *,char *),
-      MagickReadImageBlob(MagickWand *,unsigned char *,size_t length),
-      MagickReadImageFile(MagickWand *,FILE *),
-      MagickReduceNoiseImage(MagickWand *,double),
-      MagickRelinquishMemory(void *),
-      MagickRemoveImage(MagickWand *),
-      MagickResampleImage(MagickWand *,double,double,FilterTypes,
-        double),
-      MagickResizeImage(MagickWand *,unsigned long,unsigned long,
-        FilterTypes,double),
-      MagickRollImage(MagickWand *,long,long),
-      MagickRotateImage(MagickWand *,PixelWand *,double),
-      MagickSampleImage(MagickWand *,unsigned long,unsigned long),
-      MagickScaleImage(MagickWand *,unsigned long,unsigned long),
-      MagickSeparateImageChannel(MagickWand *,ChannelType),
-      MagickSetCompressionQuality(MagickWand *wand,unsigned long quality),
-      MagickSetFilename(MagickWand *,char *),
-      MagickSetImage(MagickWand *,MagickWand *),
-      MagickSetImageAttribute(MagickWand *,char *, char *),
-      MagickSetImageBackgroundColor(MagickWand *,PixelWand *),
-      MagickSetImageBluePrimary(MagickWand *,double,double),
-      MagickSetImageBorderColor(MagickWand *,PixelWand *),
-      MagickSetImageChannelDepth(MagickWand *,ChannelType,
-        unsigned long),
-      MagickSetImageColormapColor(MagickWand *,unsigned long,
-        PixelWand *),
-      MagickSetImageCompose(MagickWand *,CompositeOperator),
-      MagickSetImageCompression(MagickWand *,CompressionType),
-      MagickSetImageDelay(MagickWand *,unsigned long),
-      MagickSetImageDepth(MagickWand *,unsigned long),
-      MagickSetImageDispose(MagickWand *,DisposeType),
-      MagickSetImageColorspace(MagickWand *,ColorspaceType),
-      MagickSetImageGreenPrimary(MagickWand *,double,double),
-      MagickSetImageGamma(MagickWand *,double),
-      MagickSetImageFilename(MagickWand *,char *),
-      MagickSetImageFormat(MagickWand *wand,char *format),
-      MagickSetImageFuzz(MagickWand *,double),
-      MagickSetImageIndex(MagickWand *,long),
-      MagickSetImageInterlaceScheme(MagickWand *,InterlaceType),
-      MagickSetImageIterations(MagickWand *,unsigned long),
-      MagickSetImageMatteColor(MagickWand *,PixelWand *),
-      MagickSetImageOption(MagickWand *,char *,char *,char *),
-      MagickSetImagePixels(MagickWand *,long,long,unsigned long,
-        unsigned long,char *,StorageType,unsigned char *),
-      MagickSetImageRedPrimary(MagickWand *,double,double),
-      MagickSetImageRenderingIntent(MagickWand *,RenderingIntent),
-      MagickSetImageResolution(MagickWand *,double,double),
-      MagickSetImageScene(MagickWand *,unsigned long),
-      MagickSetImageType(MagickWand *,ImageType),
-      MagickSetImageUnits(MagickWand *,ResolutionType),
-      MagickSetImageVirtualPixelMethod(MagickWand *,VirtualPixelMethod),
-      MagickSetPassphrase(MagickWand *,char *),
-      MagickSetImageProfile(MagickWand *,char *,unsigned char *,
-        unsigned long),
-      MagickSetResolution(MagickWand *wand,
-        double x_resolution,double y_resolution),
-      MagickSetResolutionUnits(MagickWand *wand,ResolutionType units),
-      MagickSetResourceLimit(ResourceType type,unsigned long limit),
-      MagickSetSamplingFactors(MagickWand *,unsigned long,double *),
-      MagickSetSize(MagickWand *,unsigned long,unsigned long),
-      MagickSetImageWhitePoint(MagickWand *,double,double),
-      MagickSetInterlaceScheme(MagickWand *,InterlaceType),
-      MagickSharpenImage(MagickWand *,double,double),
-      MagickShaveImage(MagickWand *,unsigned long,unsigned long),
-      MagickShearImage(MagickWand *,PixelWand *,double,double),
-      MagickSolarizeImage(MagickWand *,double),
-      MagickSpreadImage(MagickWand *,double),
-      MagickStripImage(MagickWand *),
-      MagickSwirlImage(MagickWand *,double),
-      MagickTintImage(MagickWand *,PixelWand *,PixelWand *),
-      MagickThresholdImage(MagickWand *,double),
-      MagickThresholdImageChannel(MagickWand *,ChannelType,double),
-      MagickTransparentImage(MagickWand *,PixelWand *,Quantum,
-        double),
-      MagickTrimImage(MagickWand *,double),
-      MagickUnsharpMaskImage(MagickWand *,double,double,double,
-        double),
-      MagickWaveImage(MagickWand *,double,double),
-      MagickWhiteThresholdImage(MagickWand *,PixelWand *),
-      MagickWriteImage(MagickWand *,char *),
-      MagickWriteImageFile(MagickWand *,FILE *),
-      MagickWriteImages(MagickWand *,char *,unsigned int);
+    unsigned long MagickGetImageColors(MagickWand*)
+    unsigned long MagickGetImageDelay(MagickWand*)
+    unsigned long MagickGetImageChannelDepth(MagickWand*, _image.ChannelType)
+    unsigned long MagickGetImageDepth(MagickWand*)
+    unsigned long MagickGetImageHeight(MagickWand*)
+    unsigned long MagickGetImageIterations(MagickWand*)
+    unsigned long MagickGetImageScene(MagickWand*)
+    unsigned long MagickGetImageWidth(MagickWand*)
+    unsigned long MagickGetNumberImages(MagickWand*)
+    #unsigned long MagickGetResourceLimit(ResourceType)
 
-    unsigned long
-      MagickGetImageColors(MagickWand *),
-      MagickGetImageDelay(MagickWand *),
-      MagickGetImageChannelDepth(MagickWand *,ChannelType),
-      MagickGetImageDepth(MagickWand *),
-      MagickGetImageHeight(MagickWand *),
-      MagickGetImageIterations(MagickWand *),
-      MagickGetImageScene(MagickWand *),
-      MagickGetImageWidth(MagickWand *),
-      MagickGetNumberImages(MagickWand *),
-      MagickGetResourceLimit(ResourceType);
+    #VirtualPixelMethod MagickGetImageVirtualPixelMethod(MagickWand*)
 
-    VirtualPixelMethod
-      MagickGetImageVirtualPixelMethod(MagickWand *);
+    unsigned char* MagickGetImageProfile(MagickWand*, char*, unsigned long*)
+    unsigned char* MagickRemoveImageProfile(MagickWand*, char*, unsigned long*)
+    unsigned char* MagickWriteImageBlob(MagickWand*, size_t*)
 
-    unsigned char
-      *MagickGetImageProfile(MagickWand *,char *,unsigned long *),
-      *MagickRemoveImageProfile(MagickWand *,char *,unsigned long *),
-      *MagickWriteImageBlob(MagickWand *,size_t *);
-
-    void
-      MagickResetIterator(MagickWand *);
+    void MagickResetIterator(MagickWand*)
