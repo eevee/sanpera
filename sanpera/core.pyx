@@ -25,7 +25,7 @@ cdef extern from "stdio.h":
 
 _magick.InitializeMagick(Py_GetProgramFullPath())
 # XXX THIS IS FUCKING AWESOME MAKE A THING TO TURN THIS ON
-#_log.SetLogEventMask("all")
+_log.SetLogEventMask("all")
 
 def _shutdown():
     _magick.DestroyMagick()
@@ -74,30 +74,13 @@ cdef class ImageFrame:
         if self._frame:
             _image.DestroyImage(self._frame)
 
-        _image.ReferenceImage(other)
         self._frame = other
+        _image.ReferenceImage(self._frame)
 
     def __init__(self):
         raise TypeError("RawFrames cannot be instantiated directly")
 
 
-    def resize(self, int columns, int rows):
-        # XXX size ought to be a tuple
-        # TODO percents
-        # TODO < > ^ ! ...
-        # XXX should size be a geometry object or summat
-        # TODO allow picking a filter
-        # TODO allow messing with blur?
-
-        # TODO better way to check for exceptions
-        # TODO do i need to destroy this?
-        cdef _image.Image* new_image = NULL
-        cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            new_image = _resize.ResizeImage(
-                self._frame, columns, rows,
-                _image.LanczosFilter, 1.0, &exc.exception)
-            return _ImageFrame_factory(new_image)
 
 cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
     cdef ImageFrame self = ImageFrame.__new__(ImageFrame)
@@ -106,27 +89,19 @@ cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
 
 
 cdef class Image:
-    """Represents a stack of zero or more frames."""
+    """A stack of zero or more frames."""
 
     cdef _image.Image* _stack
+    cdef list _frames
 
     def __cinit__(self):
         self._stack = NULL
+        self._frames = []
 
     def __dealloc__(self):
-        pass
-
-
-    ### Sequence stuff
-
-    def __len__(self):
-        # TODO optimize/cache?
-        return _list.GetImageListLength(self._stack)
-
-    def __nonzero__(self):
-        return self._stack != NULL
-
-    # TODO getitem should return a Frame
+        if self._stack:
+            _list.DestroyImageList(self._stack)
+        self._stack = NULL
 
 
     ### Constructors
@@ -156,6 +131,7 @@ cdef class Image:
             #image_info.file = NULL
             _image.DestroyImageInfo(image_info)
 
+        self._setup_frames()
         return self
 
     @classmethod
@@ -170,60 +146,115 @@ cdef class Image:
         finally:
             _image.DestroyImageInfo(image_info)
 
+        self._setup_frames()
         return self
 
 
     ### cdef utilities
 
-    cdef _raw_append(self, _image.Image* other):
-        # Only use for unique image pointers that won't be in any other list!
-        _list.AppendImageToList(&self._stack, other)
+    cdef _setup_frames(self):
+        # Shared by constructors to read the frame list out of the new image
+        assert not self._frames
 
-
-    ### listy interface
-
-    def __iter__(self):
-        # TODO cache me, or just keep me around in the first place
         cdef _image.Image* p = self._stack
         while p:
-            yield _ImageFrame_factory(p)
+            self._frames.append(_ImageFrame_factory(p))
             p = _list.GetNextImageInList(p)
 
 
-    # TODO getitem.  setitem?
+    ### Sequence operations
+
+    def __len__(self):
+        # TODO optimize/cache?
+        return _list.GetImageListLength(self._stack)
+
+    def __nonzero__(self):
+        return self._stack != NULL
+
+    def __iter__(self):
+        cdef ImageFrame frame
+        for frame in self._frames:
+            yield frame
+
+    def __getitem__(self, key):
+        return self._frames[key]
+
+    # TODO
+    #def __setitem__(self, key, value):
 
 
-    def append(self, ImageFrame other not None):
+    # TODO turn all this stuff into a single get/set slice interface?
+    def append(self, ImageFrame other):
+        """Appends a copy of the given frame to this image."""
         cdef _image.Image* cloned_frame
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
             # 0, 0 => size; 0x0 means to reuse the same pixel cache
             # 1 => orphan; clear the previous/next pointers
             cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, &exc.exception)
+
         _list.AppendImageToList(&self._stack, cloned_frame)
+        self._frames.append(_ImageFrame_factory(cloned_frame))
 
     def extend(self, Image other not None):
-        # TODO i am still regretful about this; it requires a lot of copying
-        # for the simple example of opening files, stacking them together, and
-        # then saving the stack.  otoh does it really matter?
+        """Appends a copy of each of the given image's frames to this image."""
         cdef _image.Image* cloned_stack
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
             cloned_stack = _list.CloneImageList(other._stack, &exc.exception)
+
         _list.AppendImageToList(&self._stack, cloned_stack)
+
+        cdef _image.Image* p = cloned_stack
+        while p:
+            self._frames.append(_ImageFrame_factory(p))
+            p = _list.GetNextImageInList(p)
+
+    def consume(self, Image other not None):
+        """Similar to `extend`, but also removes the frames from the other
+        image, leaving it empty.  The advantage is that the frames don't need
+        to be copied, so this is a little more efficient when loading many
+        separate images and operating on them as a whole, as with `convert`.
+        """
+        _list.AppendImageToList(&self._stack, other._stack)
+        self._frames.extend(other._frames)
+
+        other._stack = NULL
+        other._frames = []
 
 
     ### the good stuff
 
-    # XXX this is inconsistent; appending and extending modify in-place, but
-    # resizing returns a new thing.  or is that not inconsistent since Python
-    # list manip tends to work the same way?
-    def resize(self, int columns, int rows):
-        cdef Image new = Image()
-        cdef ImageFrame frame
-        for frame in self:
-            new.append(frame.resize(columns, rows))
+    # XXX starting to think that this stuff doesn't belong in ImageFrame, as
+    # there's nothing too useful a caller can do with an unattached frame.  it
+    # should just be a mutable view of a frame for pixel operations and
+    # generally rearranging frames.
 
+    def resize(self, int columns, int rows):
+        # XXX size ought to be a tuple
+        # TODO percents
+        # TODO < > ^ ! ...
+        # XXX should size be a geometry object or summat
+        # TODO allow picking a filter
+        # TODO allow messing with blur?
+
+        # TODO better way to check for exceptions
+        # TODO do i need to destroy this?
+        cdef Image new = self.__class__()
+        cdef _image.Image* p = self._stack
+        cdef _image.Image* new_frame
+        cdef ExceptionCatcher exc
+
+        while p:
+            with ExceptionCatcher() as exc:
+                new_frame = _resize.ResizeImage(
+                    p, columns, rows,
+                    _image.LanczosFilter, 1.0, &exc.exception)
+
+            _list.AppendImageToList(&new._stack, new_frame)
+            p = _list.GetNextImageInList(p)
+
+        new._setup_frames()
         return new
 
 
@@ -249,9 +280,6 @@ cdef class Image:
         # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
 
-        # First fix up the image links
-        self.link_frames()
-
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.adjoin = 1  # force writing a single file
@@ -270,7 +298,7 @@ cdef class Image:
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.adjoin = 1  # force writing a single file
-        #libc_string.strncpy(head_image.magick, "gif", 10)  # XXX ho ho what are you trying to pull
+        #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
         cdef ExceptionCatcher exc
         cdef void* cbuf = NULL
         cdef size_t length = 0
