@@ -1,7 +1,7 @@
-from sanpera._magick_api cimport _common, _error
+from sanpera._magick_api cimport _common, _exception
 from sanpera._magick_api._colorspace cimport ColorspaceType
-from sanpera._magick_api._common cimport MagickBool, MagickPassFail
-from sanpera._magick_api._error cimport ExceptionInfo, ExceptionType
+from sanpera._magick_api._common cimport MagickBooleanType, MagickPassFail
+from sanpera._magick_api._exception cimport ExceptionInfo, ExceptionType
 from sanpera._magick_api._timer cimport TimerInfo
 
 # XXX may need: forward, colorspace, error, timer
@@ -342,8 +342,8 @@ cdef extern from "magick/image.h":
         ClassType storage_class
         ColorspaceType colorspace
         CompressionType compression
-        MagickBool dither
-        MagickBool matte  # true iff image has an alpha channel
+        MagickBooleanType dither
+        MagickBooleanType matte  # true iff image has an alpha channel
         unsigned long columns
         unsigned long rows
         unsigned int colors  # only matters for PseudoClass
@@ -402,9 +402,9 @@ cdef extern from "magick/image.h":
 
     ctypedef struct ImageInfo:
         CompressionType compression
-        MagickBool temporary
-        MagickBool adjoin
-        MagickBool antialias
+        MagickBooleanType temporary
+        MagickBooleanType adjoin
+        MagickBooleanType antialias
         unsigned long subimage
         unsigned long subrange
         unsigned long depth
@@ -426,9 +426,9 @@ cdef extern from "magick/image.h":
         PixelPacket background_color
         PixelPacket border_color
         PixelPacket matte_color
-        MagickBool dither
-        MagickBool monochrome
-        MagickBool progress
+        MagickBooleanType dither
+        MagickBooleanType monochrome
+        MagickBooleanType progress
         ColorspaceType colorspace
         ImageType type
         long group  # used for X11
@@ -461,15 +461,15 @@ cdef extern from "magick/image.h":
 
     int GetImageGeometry(Image*, char*, unsigned int, RectangleInfo*)
 
-    MagickBool IsTaintImage(Image*)
-    MagickBool IsSubimage(char*, unsigned int)
+    MagickBooleanType IsTaintImage(Image*)
+    MagickBooleanType IsSubimage(char*, unsigned int)
 
     # From ye docs: Functions which return unsigned int to indicate operation pass/fail
     # XXX be careful with these; perhaps wrap and only use the wrappers
     MagickPassFail AddDefinitions(ImageInfo* image_info, char* options, ExceptionInfo* exception)
     MagickPassFail AnimateImages(ImageInfo* image_info, Image* image)
     MagickPassFail ClipImage(Image*)
-    MagickPassFail ClipPathImage(Image* image, char* pathname, MagickBool inside)
+    MagickPassFail ClipPathImage(Image* image, char* pathname, MagickBooleanType inside)
     MagickPassFail DisplayImages(ImageInfo* image_info, Image* image)
     MagickPassFail RemoveDefinitions(ImageInfo* image_info, char* options)
     MagickPassFail SetImage(Image*, Quantum)

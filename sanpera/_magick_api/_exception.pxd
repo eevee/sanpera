@@ -1,6 +1,6 @@
 from sanpera._magick_api cimport _common
 
-cdef extern from "magick/error.h":
+cdef extern from "magick/exception.h":
     ### Enums for exception type hierarchy
     # XXX is BaseType actually needed?
     ctypedef enum ExceptionBaseType:

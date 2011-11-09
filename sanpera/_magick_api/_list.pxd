@@ -1,13 +1,13 @@
-from sanpera._magick_api cimport _common, _error, _image
+from sanpera._magick_api cimport _common, _exception, _image
 
 cdef extern from "magick/list.h":
-    _image.Image* CloneImageList(_image.Image*, _error.ExceptionInfo*)
+    _image.Image* CloneImageList(_image.Image*, _exception.ExceptionInfo*)
     _image.Image* GetFirstImageInList(_image.Image*)
     _image.Image* GetImageFromList(_image.Image*, long)
     _image.Image* GetLastImageInList(_image.Image*)
     _image.Image* GetNextImageInList(_image.Image*)
     _image.Image* GetPreviousImageInList(_image.Image*)
-    _image.Image** ImageListToArray(_image.Image*, _error.ExceptionInfo*)
+    _image.Image** ImageListToArray(_image.Image*, _exception.ExceptionInfo*)
     _image.Image* NewImageList()
     _image.Image* RemoveLastImageFromList(_image.Image**)
     _image.Image* RemoveFirstImageFromList(_image.Image**)

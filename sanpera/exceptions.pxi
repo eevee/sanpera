@@ -1,4 +1,4 @@
-"""Deal with GraphicsMagick errors."""
+"""Deal with ImageMagick errors."""
 
 class GenericMagickException(Exception): pass
 
@@ -9,20 +9,20 @@ cdef class ExceptionCatcher:
     Python exception.
     """
 
-    cdef _error.ExceptionInfo exception
+    cdef _exception.ExceptionInfo exception
 
     def __cinit__(self):
-        _error.GetExceptionInfo(&self.exception)
+        _exception.GetExceptionInfo(&self.exception)
 
     def __dealloc__(self):
-        _error.DestroyExceptionInfo(&self.exception)
+        _exception.DestroyExceptionInfo(&self.exception)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         # TODO have more exceptions
-        if self.exception.severity != _error.UndefinedException:
+        if self.exception.severity != _exception.UndefinedException:
             raise GenericMagickException(<bytes>self.exception.reason + <bytes>self.exception.description)
 
         return False

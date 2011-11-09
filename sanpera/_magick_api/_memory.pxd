@@ -1,13 +1,19 @@
 from sanpera._magick_api cimport _common
 
-cdef extern from "magick/memory.h":
-    ctypedef void* (*MagickMallocFunc)(size_t size)
-    ctypedef void (*MagickFreeFunc)(void* ptr)
-    ctypedef void* (*MagickReallocFunc)(void* ptr, size_t size)
+cdef extern from "magick/memory_.h":
+    ctypedef void* (*AcquireMemoryHandler)(size_t)
+    ctypedef void (*DestroyMemoryHandler)(void*)
+    ctypedef void* (*ResizeMemoryHandler)(void*, size_t)
 
-    void MagickAllocFunctions(MagickFreeFunc free_func, MagickMallocFunc malloc_func, MagickReallocFunc realloc_func)
-    void* MagickMalloc(size_t size)
-    void* MagickMallocCleared(size_t size)
-    void* MagickCloneMemory(void* destination, void* source, size_t size)
-    void* MagickRealloc(void* memory, size_t size)
-    void MagickFree(void* memory)
+    void* AcquireAlignedMemory(size_t, size_t)
+    void* AcquireMagickMemory(size_t)
+    void* AcquireQuantumMemory(size_t, size_t)
+    void* CopyMagickMemory(void*, void*, size_t)
+    void DestroyMagickMemory()
+    void GetMagickMemoryMethods(AcquireMemoryHandler*, ResizeMemoryHandler*, DestroyMemoryHandler*)
+    void* RelinquishAlignedMemory(void*)
+    void* RelinquishMagickMemory(void*)
+    void* ResetMagickMemory(void*, int, size_t)
+    void* ResizeMagickMemory(void*, size_t)
+    void* ResizeQuantumMemory(void*, size_t, size_t)
+    void SetMagickMemoryMethods(AcquireMemoryHandler,ResizeMemoryHandler, DestroyMemoryHandler)

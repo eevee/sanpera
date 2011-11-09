@@ -8,7 +8,7 @@ import sys
 
 cimport libc.string as libc_string
 cimport libc.stdio
-from sanpera._magick_api cimport _blob, _constitute, _error, _image, _list, _log, _magick, _memory, _resize
+from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _resize
 import atexit
 
 
@@ -23,12 +23,12 @@ cdef extern from "stdio.h":
 
 ### Make sure to call the library's setup and teardown methods
 
-_magick.InitializeMagick(Py_GetProgramFullPath())
+_magick.MagickCoreGenesis(Py_GetProgramFullPath(), _common.MagickFalse)
 # XXX THIS IS FUCKING AWESOME MAKE A THING TO TURN THIS ON
-_log.SetLogEventMask("all")
+#_log.SetLogEventMask("all")
 
 def _shutdown():
-    _magick.DestroyMagick()
+    _magick.MagickCoreTerminus()
 atexit.register(_shutdown)
 
 
@@ -268,7 +268,7 @@ cdef class Image:
 
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = 1  # force writing a single file
+        image_info.adjoin = _common.MagickTrue  # force writing a single file
 
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
@@ -282,7 +282,7 @@ cdef class Image:
 
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = 1  # force writing a single file
+        image_info.adjoin = _common.MagickTrue  # force writing a single file
         image_info.file = fdopen(fileobj.fileno(), "w")
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
@@ -297,7 +297,7 @@ cdef class Image:
 
         # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = 1  # force writing a single file
+        image_info.adjoin = _common.MagickTrue  # force writing a single file
         #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
         cdef ExceptionCatcher exc
         cdef void* cbuf = NULL
@@ -310,7 +310,7 @@ cdef class Image:
             buf = (<unsigned char*> cbuf)[:length]
         finally:
             pass
-            _memory.MagickFree(cbuf)
+            _memory.RelinquishMagickMemory(cbuf)
 
         # TODO leak ahoy
         _image.DestroyImageInfo(image_info)
