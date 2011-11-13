@@ -27,11 +27,18 @@ else:
         extra_link_args=shlex.split(link_args),
     )
 
+def ext_module(module):
+    return Extension(
+        "sanpera.%s" % (module,),
+        ["sanpera/%s.pyx" % (module,)],
+        **extension_kwargs)
+
 setup(
     name='sanpera',
     cmdclass={'build_ext': build_ext},
     ext_modules=[
-        Extension('sanpera.core', ['sanpera/core.pyx'],
-            **extension_kwargs),
+        ext_module('core'),
+        ext_module('exception'),
+        ext_module('image'),
     ],
 )

@@ -1,6 +1,6 @@
 import sys
 
-from sanpera.core import Image
+from sanpera.image import Image
 
 def demo_program():
     filenames = sys.argv[1:]
@@ -11,7 +11,7 @@ def demo_program():
         print "Reading %s ..." % (fn,)
         #img = Image.from_filename(fn)
         #img = Image.from_buffer(open(fn).read())
-        img = Image.from_file(open(fn))
+        img = Image.read(open(fn))
         print " %lu frames" % (len(img),)
         images.extend(img)
 
@@ -27,7 +27,7 @@ def demo_program():
     if thumbnails:
         print "Writing %s ... %lu frames" % (out_filename,
              len(thumbnails))
-        open(out_filename, 'w').write(thumbnails.to_buffer())
+        open(out_filename, 'w').write(thumbnails.write_buffer())
         #thumbnails.write_file(open(out_filename, 'w'))
         #thumbnails.write(out_filename)
 

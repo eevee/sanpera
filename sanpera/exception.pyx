@@ -1,5 +1,7 @@
 """Deal with ImageMagick errors."""
 
+from sanpera._magick_api cimport _exception
+
 class GenericMagickException(Exception): pass
 
 cdef class ExceptionCatcher:
@@ -9,7 +11,8 @@ cdef class ExceptionCatcher:
     Python exception.
     """
 
-    cdef _exception.ExceptionInfo exception
+    # Defined in exception.pxd
+    #cdef _exception.ExceptionInfo exception
 
     def __cinit__(self):
         _exception.GetExceptionInfo(&self.exception)
