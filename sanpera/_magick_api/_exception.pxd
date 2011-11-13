@@ -1,80 +1,13 @@
 from sanpera._magick_api cimport _common
 
 cdef extern from "magick/exception.h":
-    ### Enums for exception type hierarchy
-    # XXX is BaseType actually needed?
-    ctypedef enum ExceptionBaseType:
-        UndefinedExceptionBase
-        ExceptionBase
-        ResourceBase
-        ResourceLimitBase
-        TypeBase
-        AnnotateBase
-        OptionBase
-        DelegateBase
-        MissingDelegateBase
-        CorruptImageBase
-        FileOpenBase
-        BlobBase
-        StreamBase
-        CacheBase
-        CoderBase
-        ModuleBase
-        DrawBase
-        RenderBase
-        ImageBase
-        WandBase
-        TemporaryFileBase
-        TransformBase
-        XServerBase
-        X11Base
-        UserBase
-        MonitorBase
-        LocaleBase
-        DeprecateBase
-        RegistryBase
-        ConfigureBase
-
     # XXX this clobbers a couple python builtin names; doubt that matters though
     ctypedef enum ExceptionType:
         UndefinedException
-        EventException
-        ExceptionEvent
-        ResourceEvent
-        ResourceLimitEvent
-        TypeEvent
-        AnnotateEvent
-        OptionEvent
-        DelegateEvent
-        MissingDelegateEvent
-        CorruptImageEvent
-        FileOpenEvent
-        BlobEvent
-        StreamEvent
-        CacheEvent
-        CoderEvent
-        ModuleEvent
-        DrawEvent
-        RenderEvent
-        ImageEvent
-        WandEvent
-        TemporaryFileEvent
-        TransformEvent
-        XServerEvent
-        X11Event
-        UserEvent
-        MonitorEvent
-        LocaleEvent
-        DeprecateEvent
-        RegistryEvent
-        ConfigureEvent
 
         WarningException
-        ExceptionWarning
-        ResourceWarning
         ResourceLimitWarning
         TypeWarning
-        AnnotateWarning
         OptionWarning
         DelegateWarning
         MissingDelegateWarning
@@ -84,28 +17,21 @@ cdef extern from "magick/exception.h":
         StreamWarning
         CacheWarning
         CoderWarning
+        FilterWarning
         ModuleWarning
         DrawWarning
-        RenderWarning
         ImageWarning
         WandWarning
-        TemporaryFileWarning
-        TransformWarning
+        RandomWarning
         XServerWarning
-        X11Warning
-        UserWarning
         MonitorWarning
-        LocaleWarning
-        DeprecateWarning
         RegistryWarning
         ConfigureWarning
+        PolicyWarning
 
         ErrorException
-        ExceptionError
-        ResourceError
         ResourceLimitError
         TypeError
-        AnnotateError
         OptionError
         DelegateError
         MissingDelegateError
@@ -115,28 +41,21 @@ cdef extern from "magick/exception.h":
         StreamError
         CacheError
         CoderError
+        FilterError
         ModuleError
         DrawError
-        RenderError
         ImageError
         WandError
-        TemporaryFileError
-        TransformError
+        RandomError
         XServerError
-        X11Error
-        UserError
         MonitorError
-        LocaleError
-        DeprecateError
         RegistryError
         ConfigureError
+        PolicyError
 
         FatalErrorException
-        ExceptionFatalError
-        ResourceFatalError
         ResourceLimitFatalError
         TypeFatalError
-        AnnotateFatalError
         OptionFatalError
         DelegateFatalError
         MissingDelegateFatalError
@@ -146,21 +65,17 @@ cdef extern from "magick/exception.h":
         StreamFatalError
         CacheFatalError
         CoderFatalError
+        FilterFatalError
         ModuleFatalError
         DrawFatalError
-        RenderFatalError
         ImageFatalError
         WandFatalError
-        TemporaryFileFatalError
-        TransformFatalError
+        RandomFatalError
         XServerFatalError
-        X11FatalError
-        UserFatalError
         MonitorFatalError
-        LocaleFatalError
-        DeprecateFatalError
         RegistryFatalError
         ConfigureFatalError
+        PolicyFatalError
 
 
     # Main exception type
@@ -173,39 +88,24 @@ cdef extern from "magick/exception.h":
         # Value of errno when the exception was thrown
         int error_number
 
-        # Source of the exception
-        char* module
-        char* function
-        unsigned long line
 
-    # Exception handler types (these are funcrefs)
-    # XXX what's the syntax for this
+    # Exception handler function reference types
     ctypedef void (*ErrorHandler)(ExceptionType, char*, char*)
     ctypedef void (*FatalErrorHandler)(ExceptionType, char*, char*)
     ctypedef void (*WarningHandler)(ExceptionType, char*, char*)
-    #ctypedef FatalErrorHandler
-    #ctypedef WarningHandler
-
-    char* GetLocaleExceptionMessage(ExceptionType, char *)
-    char* GetLocaleMessage(char *)
 
     ErrorHandler SetErrorHandler(ErrorHandler)
     FatalErrorHandler SetFatalErrorHandler(FatalErrorHandler)
     WarningHandler SetWarningHandler(WarningHandler)
 
-    void CatchException(ExceptionInfo *)
-    void CopyException(ExceptionInfo *copy, ExceptionInfo *original)
-    void DestroyExceptionInfo(ExceptionInfo *)
-    void GetExceptionInfo(ExceptionInfo *)
-    void MagickError(ExceptionType,char *,char *)
-    void MagickFatalError(ExceptionType,char *,char *)
-    void MagickWarning(ExceptionType,char *,char *)
-    void _MagickError(ExceptionType,char *,char *)
-    void _MagickFatalError(ExceptionType,char *,char *)
-    void _MagickWarning(ExceptionType,char *,char *)
-    void SetExceptionInfo(ExceptionInfo *,ExceptionType)
-    void ThrowException(ExceptionInfo *,ExceptionType,char *,char *)
-    void ThrowLoggedException(ExceptionInfo *exception, ExceptionType severity,
-        char *reason,char *description, char *module,
-        char *function, unsigned long line)
 
+    char* GetExceptionMessage(int)
+    char* GetLocaleExceptionMessage(ExceptionType, char*)
+
+    void CatchException(ExceptionInfo*)
+    void ClearMagickException(ExceptionInfo*)
+    void GetExceptionInfo(ExceptionInfo*)
+    void InheritException(ExceptionInfo*, ExceptionInfo*)
+    void MagickError(ExceptionType, char*, char*)
+    void MagickFatalError(ExceptionType, char*, char*)
+    void MagickWarning(ExceptionType, char*, char*)
