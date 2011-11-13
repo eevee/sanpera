@@ -9,19 +9,17 @@ from collections import namedtuple
 from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _resize
 from sanpera.exception cimport ExceptionCatcher
 
+
 ### Spare declarations
 
 cdef extern from "stdio.h":
     libc.stdio.FILE* fdopen(int fd, char *mode)
-# TODO better exception handling /by far/; less ugly and more enforced -- use `with exception_handler() as exception`?
-# TODO read docs carefully for when exception might be populated
-# TODO these module names are unwieldy, and too much stuff called Image
-# TODO no way to inspect an image or image-info
+
+# TODO name of the wrapped c pointer is wildly inconsistent
 # TODO i am probably leaking like a sieve here
 # TODO MemoryErrors and other such things the cython docs advise
 # TODO docstrings
 # TODO expose more properties and whatever to python-land
-# TODO disallow Nones in more places probably
 # TODO threadsafety?
 
 
@@ -92,6 +90,7 @@ cdef class ImageFrame:
         self._frame = NULL
 
     cdef _set_frame(self, _image.Image* other):
+        # Sets the wrapped frame, discarding the old one if necessary.
         # Only feed me a newly-created frame!  NEVER pass in another
         # ImageFrame's frame!
         if self._frame:
@@ -112,7 +111,9 @@ cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
 ### Image
 
 cdef class Image:
-    """A stack of zero or more frames."""
+    """An image.  If you don't know what this is, you may be using the wrong
+    library.
+    """
 
     cdef _image.Image* _stack
     cdef list _frames
@@ -153,7 +154,7 @@ cdef class Image:
     def read_buffer(type cls, bytes buf not None):
         cdef Image self = cls()
 
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         cdef ExceptionCatcher exc
         try:
             with ExceptionCatcher() as exc:
@@ -167,11 +168,12 @@ cdef class Image:
 
     ### cdef utilities
 
-    cdef _setup_frames(self):
+    cdef _setup_frames(self, _image.Image* start = NULL):
         # Shared by constructors to read the frame list out of the new image
         assert not self._frames
 
-        cdef _image.Image* p = self._stack
+        if not start:
+            start = self._stack
         while p:
             self._frames.append(_ImageFrame_factory(p))
             p = _list.GetNextImageInList(p)
@@ -219,11 +221,7 @@ cdef class Image:
             cloned_stack = _list.CloneImageList(other._stack, &exc.exception)
 
         _list.AppendImageToList(&self._stack, cloned_stack)
-
-        cdef _image.Image* p = cloned_stack
-        while p:
-            self._frames.append(_ImageFrame_factory(p))
-            p = _list.GetNextImageInList(p)
+        self._setup_frames(cloned_stack)
 
     def consume(self, Image other not None):
         """Similar to `extend`, but also removes the frames from the other
@@ -270,11 +268,6 @@ cdef class Image:
 
     ### the good stuff
 
-    # XXX starting to think that this stuff doesn't belong in ImageFrame, as
-    # there's nothing too useful a caller can do with an unattached frame.  it
-    # should just be a mutable view of a frame for pixel operations and
-    # generally rearranging frames.
-
     def resize(self, int columns, int rows):
         # XXX size ought to be a tuple
         # TODO percents
@@ -283,7 +276,6 @@ cdef class Image:
         # TODO allow picking a filter
         # TODO allow messing with blur?
 
-        # TODO do i need to destroy this?
         cdef Image new = self.__class__()
         cdef _image.Image* p = self._stack
         cdef _image.Image* new_frame
@@ -312,38 +304,37 @@ cdef class Image:
         # XXX what if there are no images
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = _common.MagickTrue  # force writing a single file
-        image_info.file = fdopen(fileobj.fileno(), "w")
-
         cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            # XXX the exception that gets set is in self._stack; oops
-            _constitute.WriteImage(image_info, self._stack)
-            #_exception.InheritException(exc.exception, self._stack.exception)?????
 
-        _image.DestroyImageInfo(image_info)
+        try:
+            image_info.adjoin = _common.MagickTrue  # force writing a single file
+            image_info.file = fdopen(fileobj.fileno(), "w")
+
+            with ExceptionCatcher() as exc:
+                _constitute.WriteImage(image_info, self._stack)
+                _exception.InheritException(&exc.exception, &self._stack.exception)
+        finally:
+            _image.DestroyImageInfo(image_info)
 
     def write_buffer(self):
         # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
 
-        # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = _common.MagickTrue  # force writing a single file
-        #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
         cdef void* cbuf = NULL
         cdef size_t length = 0
         cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            cbuf = _blob.ImageToBlob(image_info, self._stack, &length, &exc.exception)
-
         cdef bytes buf
+
         try:
+            image_info.adjoin = _common.MagickTrue  # force writing a single file
+            #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
+
+            with ExceptionCatcher() as exc:
+                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, &exc.exception)
+
             buf = (<unsigned char*> cbuf)[:length]
-        finally:
             _memory.RelinquishMagickMemory(cbuf)
-
-        # TODO leak ahoy
-        _image.DestroyImageInfo(image_info)
-
-        return buf
+            return buf
+        finally:
+            _image.DestroyImageInfo(image_info)
