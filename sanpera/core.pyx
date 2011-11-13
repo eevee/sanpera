@@ -38,7 +38,6 @@ atexit.register(_shutdown)
 include "exceptions.pxi"
 
 
-
 # TODO better exception handling /by far/; less ugly and more enforced -- use `with exception_handler() as exception`?
 # TODO read docs carefully for when exception might be populated
 # TODO these module names are unwieldy, and too much stuff called Image
@@ -71,6 +70,8 @@ cdef class ImageFrame:
         self._frame = NULL
 
     cdef _set_frame(self, _image.Image* other):
+        # Only feed me a newly-created frame!  NEVER pass in another
+        # ImageFrame's frame!
         if self._frame:
             _image.DestroyImage(self._frame)
 
@@ -104,23 +105,16 @@ cdef class Image:
         self._stack = NULL
 
 
-    ### Constructors
+    ### Constructors (input)
 
     @classmethod
-    def from_filename(type cls, bytes filename not None):
-        # ReadImage does a lot of magick (ho ho!) with the filename, from
-        # special "protocol" prefixes to extension detection to stdin to
-        # piping.  So fuck all that and just open the damn file.
-        return cls.from_file(open(filename))
-
-    @classmethod
-    def from_file(type cls, fileobj not None):
+    def read(type cls, fileobj not None):
         cdef Image self = cls()
 
         # TODO check that fileobj is actually file-like and does fileno()
         # TODO check that fileobj is open with the right mode
         # TODO or just check the return value of fdopen or whatever.
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.file = fdopen(fileobj.fileno(), "r")
 
         cdef ExceptionCatcher exc
@@ -128,17 +122,16 @@ cdef class Image:
             with ExceptionCatcher() as exc:
                 self._stack = _constitute.ReadImage(image_info, &exc.exception)
         finally:
-            #image_info.file = NULL
             _image.DestroyImageInfo(image_info)
 
         self._setup_frames()
         return self
 
     @classmethod
-    def from_buffer(type cls, bytes buf not None):
+    def read_buffer(type cls, bytes buf not None):
         cdef Image self = cls()
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
 
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(<_image.ImageInfo*>NULL)
         cdef ExceptionCatcher exc
         try:
             with ExceptionCatcher() as exc:
@@ -238,7 +231,6 @@ cdef class Image:
         # TODO allow picking a filter
         # TODO allow messing with blur?
 
-        # TODO better way to check for exceptions
         # TODO do i need to destroy this?
         cdef Image new = self.__class__()
         cdef _image.Image* p = self._stack
@@ -263,35 +255,23 @@ cdef class Image:
     # TODO allow specifying the target format  B)
     # TODO support the wacky sprintf style of dumping images out i guess
 
-    def write(self, bytes filename not None):
-        # XXX what if there are no images
-
-        # Gimme a blank image_info
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.adjoin = _common.MagickTrue  # force writing a single file
-
-        cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            _constitute.WriteImages(image_info, self._stack, filename, &exc.exception)
-
-        _image.DestroyImageInfo(image_info)
-
-    def write_file(self, fileobj not None):
+    def write(self, fileobj not None):
         # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
 
-        # Gimme a blank image_info
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.adjoin = _common.MagickTrue  # force writing a single file
         image_info.file = fdopen(fileobj.fileno(), "w")
+
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
             # XXX the exception that gets set is in self._stack; oops
             _constitute.WriteImage(image_info, self._stack)
+            #_exception.InheritException(exc.exception, self._stack.exception)?????
 
         _image.DestroyImageInfo(image_info)
 
-    def to_buffer(self):
+    def write_buffer(self):
         # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
 
@@ -299,9 +279,9 @@ cdef class Image:
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         image_info.adjoin = _common.MagickTrue  # force writing a single file
         #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
-        cdef ExceptionCatcher exc
         cdef void* cbuf = NULL
         cdef size_t length = 0
+        cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
             cbuf = _blob.ImageToBlob(image_info, self._stack, &length, &exc.exception)
 
@@ -309,7 +289,6 @@ cdef class Image:
         try:
             buf = (<unsigned char*> cbuf)[:length]
         finally:
-            pass
             _memory.RelinquishMagickMemory(cbuf)
 
         # TODO leak ahoy
