@@ -4,8 +4,12 @@
 cimport libc.string as libc_string
 cimport libc.stdio
 
+from collections import namedtuple
+
 from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _resize
 from sanpera.exception cimport ExceptionCatcher
+
+### Spare declarations
 
 cdef extern from "stdio.h":
     libc.stdio.FILE* fdopen(int fd, char *mode)
@@ -19,6 +23,53 @@ cdef extern from "stdio.h":
 # TODO expose more properties and whatever to python-land
 # TODO disallow Nones in more places probably
 # TODO threadsafety?
+
+
+### Little helpers
+
+class Size(namedtuple('Size', ('width', 'height'))):
+    __slots__ = ()
+    # TODO must be ints, positive
+
+class Point(namedtuple('Point', ('x', 'y'))):
+    __slots__ = ()
+
+class Offset(Point):
+    __slots__ = ()
+
+    def __nonzero__(self):
+        return self.x or self.y
+
+cdef class RectangleProxy:
+    cdef _image.RectangleInfo* ptr
+    cdef owner
+
+    @property
+    def width(self):
+        return self.ptr.width
+
+    @property
+    def height(self):
+        return self.ptr.height
+
+    @property
+    def x(self):
+        return self.ptr.x
+
+    @property
+    def y(self):
+        return self.ptr.y
+
+    @property
+    def size(self):
+        return Size(self.ptr.width, self.ptr.height)
+
+    @property
+    def offset(self):
+        return Offset(self.ptr.x, self.ptr.y)
+
+
+### Frame
 
 cdef class ImageFrame:
     """Represents a single frame, and knows how to perform most operations on
@@ -52,13 +103,13 @@ cdef class ImageFrame:
     def __init__(self):
         raise TypeError("RawFrames cannot be instantiated directly")
 
-
-
 cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
     cdef ImageFrame self = ImageFrame.__new__(ImageFrame)
     self._set_frame(frame)
     return self
 
+
+### Image
 
 cdef class Image:
     """A stack of zero or more frames."""
@@ -185,6 +236,36 @@ cdef class Image:
 
         other._stack = NULL
         other._frames = []
+
+
+    ### Properties
+
+    # TODO critically important: how do these work with multiple images!
+    # TODO read the convert usage a bit more carefully; there seems to be some deliberate difference in behavior between "bunch of images" and "bunch of frames".  for that matter, how DOES convert treat stuff like this?
+    # TODO anyway, conclusion of that thought was that sticking frames onto other images should do more than just diddle pointers
+    @property
+    def original_format(self):
+        return self._stack.magick
+
+    @property
+    def size(self):
+        return Size(self._stack.columns, self._stack.rows)
+
+    @property
+    def canvas(self):
+        proxy = RectangleProxy()
+        proxy.ptr = &self._stack.page
+        proxy.owner = self
+
+        return proxy
+
+    @property
+    def has_canvas(self):
+        return (
+            self._stack.page.x != 0 or
+            self._stack.page.y != 0 or
+            self._stack.page.width != self._stack.columns or
+            self._stack.page.height != self._stack.rows)
 
 
     ### the good stuff
