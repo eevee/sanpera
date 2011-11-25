@@ -143,7 +143,7 @@ cdef class Image:
         cdef ExceptionCatcher exc
         try:
             with ExceptionCatcher() as exc:
-                self._stack = _constitute.ReadImage(image_info, &exc.exception)
+                self._stack = _constitute.ReadImage(image_info, exc.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -158,7 +158,7 @@ cdef class Image:
         cdef ExceptionCatcher exc
         try:
             with ExceptionCatcher() as exc:
-                self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), &exc.exception)
+                self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -208,7 +208,7 @@ cdef class Image:
         with ExceptionCatcher() as exc:
             # 0, 0 => size; 0x0 means to reuse the same pixel cache
             # 1 => orphan; clear the previous/next pointers
-            cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, &exc.exception)
+            cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, exc.exception)
 
         _list.AppendImageToList(&self._stack, cloned_frame)
         self._frames.append(_ImageFrame_factory(cloned_frame))
@@ -218,7 +218,7 @@ cdef class Image:
         cdef _image.Image* cloned_stack
         cdef ExceptionCatcher exc
         with ExceptionCatcher() as exc:
-            cloned_stack = _list.CloneImageList(other._stack, &exc.exception)
+            cloned_stack = _list.CloneImageList(other._stack, exc.exception)
 
         _list.AppendImageToList(&self._stack, cloned_stack)
         self._setup_frames(cloned_stack)
@@ -285,7 +285,7 @@ cdef class Image:
             with ExceptionCatcher() as exc:
                 new_frame = _resize.ResizeImage(
                     p, columns, rows,
-                    _image.LanczosFilter, 1.0, &exc.exception)
+                    _image.LanczosFilter, 1.0, exc.exception)
 
             _list.AppendImageToList(&new._stack, new_frame)
             p = _list.GetNextImageInList(p)
@@ -312,7 +312,7 @@ cdef class Image:
 
             with ExceptionCatcher() as exc:
                 _constitute.WriteImage(image_info, self._stack)
-                _exception.InheritException(&exc.exception, &self._stack.exception)
+                _exception.InheritException(exc.exception, &self._stack.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -331,7 +331,7 @@ cdef class Image:
             #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
 
             with ExceptionCatcher() as exc:
-                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, &exc.exception)
+                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.exception)
 
             buf = (<unsigned char*> cbuf)[:length]
             _memory.RelinquishMagickMemory(cbuf)

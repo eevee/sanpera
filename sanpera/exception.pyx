@@ -12,13 +12,13 @@ cdef class ExceptionCatcher:
     """
 
     # Defined in exception.pxd
-    #cdef _exception.ExceptionInfo exception
+    #cdef _exception.ExceptionInfo* exception
 
     def __cinit__(self):
-        _exception.GetExceptionInfo(&self.exception)
+        self.exception = _exception.AcquireExceptionInfo()
 
     def __dealloc__(self):
-        _exception.DestroyExceptionInfo(&self.exception)
+        _exception.DestroyExceptionInfo(self.exception)
 
     def __enter__(self):
         return self

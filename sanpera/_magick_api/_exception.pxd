@@ -99,6 +99,9 @@ cdef extern from "magick/exception.h":
     WarningHandler SetWarningHandler(WarningHandler)
 
 
+    ExceptionInfo* AcquireExceptionInfo()
+    ExceptionInfo* DestroyExceptionInfo(ExceptionInfo*)
+
     char* GetExceptionMessage(int)
     char* GetLocaleExceptionMessage(ExceptionType, char*)
 
