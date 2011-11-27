@@ -10,13 +10,9 @@ try:
     proc = subprocess.Popen(['pkg-config', 'ImageMagick', '--cflags'],
             stdout=subprocess.PIPE)
 except OSError:
-    print 'WARNING: pkg-config not found; you may need to edit setup.py'
-    extension_kwargs = dict(
-        # Uncomment the following lines and put in your paths:
-        #include_dirs=['/usr/include'],
-        #library_dirs=['/usr/lib'],
-        libraries=['ImageMagick'],
-    )
+    print ('WARNING: pkg-config not found; '
+           'you will need to set CFLAGS and/or LDFLAGS')
+    extension_kwargs = {}
 else:
     compile_args, err = proc.communicate()
     proc = subprocess.Popen(['pkg-config', 'ImageMagick', '--libs'],
