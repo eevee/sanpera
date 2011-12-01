@@ -36,5 +36,6 @@ setup(
         ext_module('core'),
         ext_module('exception'),
         ext_module('image'),
+        ext_module('format'),
     ],
 )

@@ -11,7 +11,7 @@ cdef extern from "magick/magick-config.h":
     pass
 
 cdef extern from "magick/magick-type.h":
-    pass
+    ctypedef unsigned int MagickStatusType
 
 cdef extern from "magick/MagickCore.h":
     ctypedef unsigned int MagickPassFail

@@ -13,6 +13,7 @@ from sanpera._magick_api cimport _common, _magick
 cdef extern from "Python.h":
     char* Py_GetProgramFullPath()
 
+# Let ImageMagick do its setup stuff
 _magick.MagickCoreGenesis(Py_GetProgramFullPath(), _common.MagickFalse)
 
 
