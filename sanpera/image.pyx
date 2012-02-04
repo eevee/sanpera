@@ -1,5 +1,6 @@
 """Image class and assorted helper classes.  This is where the magick happens.
 """
+from __future__ import division
 
 cimport libc.string as libc_string
 cimport libc.stdio
@@ -7,6 +8,7 @@ cimport libc.stdio
 from collections import namedtuple
 
 from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _resize
+from sanpera.dimension import Offset, Point, Size
 from sanpera.exception cimport ExceptionCatcher
 
 
@@ -24,19 +26,6 @@ cdef extern from "stdio.h":
 
 
 ### Little helpers
-
-class Size(namedtuple('Size', ('width', 'height'))):
-    __slots__ = ()
-    # TODO must be ints, positive
-
-class Point(namedtuple('Point', ('x', 'y'))):
-    __slots__ = ()
-
-class Offset(Point):
-    __slots__ = ()
-
-    def __nonzero__(self):
-        return self.x or self.y
 
 cdef class RectangleProxy:
     cdef _image.RectangleInfo* ptr
@@ -268,8 +257,9 @@ cdef class Image:
 
     ### the good stuff
 
-    def resize(self, int columns, int rows):
-        # XXX size ought to be a tuple
+    def resize(self, size):
+        size = Size.coerce(size)
+
         # TODO percents
         # TODO < > ^ ! ...
         # XXX should size be a geometry object or summat
@@ -284,8 +274,8 @@ cdef class Image:
         while p:
             with ExceptionCatcher() as exc:
                 new_frame = _resize.ResizeImage(
-                    p, columns, rows,
-                    _image.LanczosFilter, 1.0, exc.exception)
+                    p, size.width, size.height,
+                    _image.UndefinedFilter, 1.0, exc.exception)
 
             _list.AppendImageToList(&new._stack, new_frame)
             p = _list.GetNextImageInList(p)
@@ -317,6 +307,7 @@ cdef class Image:
             _image.DestroyImageInfo(image_info)
 
     def write_buffer(self):
+        # XXX this function name still blows
         # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
 
