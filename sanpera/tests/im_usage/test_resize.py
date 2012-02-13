@@ -7,64 +7,70 @@ See: http://www.imagemagick.org/Usage/resize/
 import os.path
 
 from sanpera.image import Image, Size
-
 from sanpera.tests import _util
+from sanpera.tests.im_usage.common import ImageOperationRegistry
 
 def get_image(filename):
     path = _util.find_source_image(os.path.join('im_usage/resize', filename))
     return Image.read(open(path))
 
-def test_resize_basic():
-    # convert dragon.gif -resize 64x64 resize_dragon.gif
+resize_tests = ImageOperationRegistry()
+
+
+@resize_tests.register('convert dragon.gif -resize 64x64 /tmp/output.gif')
+def resize_dragon_basic():
     img = get_image('dragon.gif')
-    result = img.resize(img.size.fit_inside((64, 64)))
-    _util.assert_identical(result, get_image('resize_dragon.gif'))
+    return img.resize(img.size.fit_inside((64, 64)))
 
-    # convert terminal.gif -resize 64x64 resize_terminal.gif
+@resize_tests.register('convert terminal.gif -resize 64x64 /tmp/output.gif')
+def resize_terminal_basic():
     img = get_image('terminal.gif')
-    result = img.resize(img.size.fit_inside((64, 64)))
-    _util.assert_identical(result, get_image('resize_terminal.gif'))
+    return img.resize(img.size.fit_inside((64, 64)))
 
-def test_resize_squish():
-    # convert dragon.gif -resize 64x64\! exact_dragon.gif
+
+@resize_tests.register('convert dragon.gif -resize 64x64! /tmp/output.gif')
+def resize_dragon_squish():
     img = get_image('dragon.gif')
-    result = img.resize((64, 64))
-    _util.assert_identical(result, get_image('exact_dragon.gif'))
+    return img.resize((64, 64))
 
-    # convert terminal.gif -resize 64x64\! exact_terminal.gif
+@resize_tests.register('convert terminal.gif -resize 64x64! /tmp/output.gif')
+def resize_terminal_squish():
     img = get_image('terminal.gif')
-    result = img.resize((64, 64))
-    _util.assert_identical(result, get_image('exact_terminal.gif'))
+    return img.resize((64, 64))
 
-def test_resize_shrink():
-    # convert dragon.gif -resize 64x64\> shrink_dragon.gif
+
+@resize_tests.register('convert dragon.gif -resize 64x64> /tmp/output.gif')
+def resize_dragon_shrink():
     img = get_image('dragon.gif')
-    result = img.resize(img.size.fit_inside((64, 64), upscale=False))
-    _util.assert_identical(result, get_image('shrink_dragon.gif'))
+    return img.resize(img.size.fit_inside((64, 64), upscale=False))
 
-    # convert terminal.gif -resize 64x64\> shrink_terminal.gif
+@resize_tests.register('convert terminal.gif -resize 64x64> /tmp/output.gif')
+def resize_terminal_shrink():
     img = get_image('terminal.gif')
-    result = img.resize(img.size.fit_inside((64, 64), upscale=False))
-    _util.assert_identical(result, get_image('shrink_terminal.gif'))
+    return img.resize(img.size.fit_inside((64, 64), upscale=False))
 
-def test_resize_enlarge():
-    # convert dragon.gif -resize 64x64\< enlarge_dragon.gif
+
+@resize_tests.register('convert dragon.gif -resize 64x64< /tmp/output.gif')
+def resize_dragon_enlarge():
     img = get_image('dragon.gif')
-    result = img.resize(img.size.fit_inside((64, 64), downscale=False))
-    _util.assert_identical(result, get_image('enlarge_dragon.gif'))
+    return img.resize(img.size.fit_inside((64, 64), downscale=False))
 
-    # convert terminal.gif -resize 64x64\< enlarge_terminal.gif
+@resize_tests.register('convert terminal.gif -resize 64x64< /tmp/output.gif')
+def resize_terminal_enlarge():
     img = get_image('terminal.gif')
-    result = img.resize(img.size.fit_inside((64, 64), downscale=False))
-    _util.assert_identical(result, get_image('enlarge_terminal.gif'))
+    return img.resize(img.size.fit_inside((64, 64), downscale=False))
 
-def test_resize_fill():
-    # convert dragon.gif -resize 64x64\^ fill_dragon.gif
+
+@resize_tests.register('convert dragon.gif -resize 64x64^ /tmp/output.gif')
+def resize_dragon_fill():
     img = get_image('dragon.gif')
-    result = img.resize(img.size.fit_around((64, 64)))
-    _util.assert_identical(result, get_image('fill_dragon.gif'))
+    return img.resize(img.size.fit_around((64, 64)))
 
-    # convert terminal.gif -resize 64x64\^ fill_terminal.gif
+@resize_tests.register('convert terminal.gif -resize 64x64^ /tmp/output.gif')
+def resize_terminal_fill():
     img = get_image('terminal.gif')
-    result = img.resize(img.size.fit_around((64, 64)))
-    _util.assert_identical(result, get_image('fill_terminal.gif'))
+    return img.resize(img.size.fit_around((64, 64)))
+
+
+# I am the actual test command  :)
+test_resize_command = resize_tests.python_test_function()
