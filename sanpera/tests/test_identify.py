@@ -2,10 +2,10 @@
 
 from sanpera.image import Image
 
-from sanpera.tests import _util
+from sanpera.tests import util
 
 def test_identify_size():
-    img = Image.read(open(_util.find_source_image('eye.gif')))
+    img = Image.read(open(util.find_image('eye.gif')))
 
     assert len(img) == 1, "one frame"
     assert img.original_format == 'GIF', "image is a gif"  # XXX this should be a magick format object

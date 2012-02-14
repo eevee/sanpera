@@ -12,12 +12,15 @@ sanpera's own implementation of `convert`.
 Look at some of the actual modules to see how this works.
 """
 
+import os.path
 import subprocess
+import tempfile
 
 import pytest
 
 from sanpera.image import Image
-from sanpera.tests import _util
+from sanpera.tests import util
+
 
 class ImageOperationRegistry(object):
     """Registers a list of `convert` commands and corresponding Python
@@ -60,14 +63,33 @@ class ImageOperationRegistry(object):
     @staticmethod
     def _generic_python_test_function(command, function):
         """Template for `python_test_function`."""
+        tempfiles = []
 
         # Run the command to get the expected output
-        words = command.split()
-        subprocess.Popen(words, cwd='sanpera/tests/data/im_usage/resize').wait()
-        expected = Image.read(open('/tmp/output.gif'))
+        try:
+            words = command.split()
+            for i, word in enumerate(words):
+                # Special tokens!
+                if word == 'OUT':
+                    # Output file
+                    f = tempfile.NamedTemporaryFile()
+                    tempfiles.append(f)
+                    words[i] = f.name
+
+            assert tempfiles, "need at least one OUT token"
+
+            subprocess.Popen(
+                words,
+                cwd=util.data_root(),
+            ).wait()
+            expected = Image.read(tempfiles[0])
+
+        finally:
+            for f in tempfiles:
+                f.close()
 
         # Run the Python code
         actual = function()
 
         # Compare
-        _util.assert_identical(expected, actual)
+        util.assert_identical(expected, actual)
