@@ -27,4 +27,4 @@ def assert_identical(img1, img2):
     """
     # TODO compare more carefully: size, number of frames, image data, metadata?
     assert img1.size == img2.size
-    assert img1.write_buffer() == img2.write_buffer()
+    assert img1.to_buffer() == img2.to_buffer()

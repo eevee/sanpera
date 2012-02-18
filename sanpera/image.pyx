@@ -121,13 +121,24 @@ cdef class Image:
 
     @classmethod
     def read(type cls, fileobj not None):
+        # Check that the file is a file-like that we can read
+        try:
+            fileno = fileobj.fileno
+            mode = fileobj.mode
+        except AttributeError:
+            return cls.read_buffer(fileobj.read())
+
+        if 'r' not in fileobj.mode and '+' not in fileobj.mode:
+            raise IOError("File not open for reading")
+
         cdef Image self = cls()
 
-        # TODO check that fileobj is actually file-like and does fileno()
-        # TODO check that fileobj is open with the right mode
-        # TODO or just check the return value of fdopen or whatever.
+        # Populate an image info thing for IM to read
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        image_info.file = fdopen(fileobj.fileno(), "r")
+        libc_string.strncpy(image_info.filename, <char*>fileobj.name, _common.MaxTextExtent)
+        image_info.file = fdopen(fileno(), "r")
+        if image_info.file == NULL:
+            raise OSError("Couldn't create filehandle")
 
         cdef ExceptionCatcher exc
         try:
@@ -290,15 +301,28 @@ cdef class Image:
     # TODO support the wacky sprintf style of dumping images out i guess
 
     def write(self, fileobj not None):
-        # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
         # XXX what if there are no images
+
+        # Check that the file is a file-like that we can write
+        try:
+            fileno = fileobj.fileno
+            mode = fileobj.mode
+        except AttributeError:
+            fileobj.write(self.to_buffer())
+
+        if 'w' not in fileobj.mode and 'a' not in fileobj.mode and '+' not in fileobj.mode:
+            raise IOError("File not open for writing")
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         cdef ExceptionCatcher exc
 
         try:
             image_info.adjoin = _common.MagickTrue  # force writing a single file
+            # TODO fix this to allow selecting the target format
+            #libc_string.strncpy(self._stack.magick, "GIF", _common.MaxTextExtent)
             image_info.file = fdopen(fileobj.fileno(), "w")
+            if image_info.file == NULL:
+                raise OSError("Couldn't create filehandle")
 
             with ExceptionCatcher() as exc:
                 _constitute.WriteImage(image_info, self._stack)
@@ -306,9 +330,7 @@ cdef class Image:
         finally:
             _image.DestroyImageInfo(image_info)
 
-    def write_buffer(self):
-        # XXX this function name still blows
-        # TODO check that fileobj is file-like, does fileno(), does right mode, doesn't explode fdopen
+    def to_buffer(self):
         # XXX what if there are no images
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
@@ -319,7 +341,8 @@ cdef class Image:
 
         try:
             image_info.adjoin = _common.MagickTrue  # force writing a single file
-            #libc_string.strncpy(self._stack.magick, "GIF", 10)  # XXX ho ho what are you trying to pull
+            # TODO fix this to allow selecting the target format
+            #libc_string.strncpy(self._stack.magick, "GIF", _common.MaxTextExtent)
 
             with ExceptionCatcher() as exc:
                 cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.exception)

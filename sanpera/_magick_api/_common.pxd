@@ -18,3 +18,5 @@ cdef extern from "magick/MagickCore.h":
     ctypedef enum MagickBooleanType:
         MagickFalse
         MagickTrue
+
+    cdef unsigned int MaxTextExtent

@@ -27,7 +27,7 @@ def demo_program():
     if thumbnails:
         print "Writing %s ... %lu frames" % (out_filename,
              len(thumbnails))
-        open(out_filename, 'w').write(thumbnails.write_buffer())
+        open(out_filename, 'w').write(thumbnails.to_buffer())
         #thumbnails.write_file(open(out_filename, 'w'))
         #thumbnails.write(out_filename)
 
