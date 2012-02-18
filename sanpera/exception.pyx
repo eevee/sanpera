@@ -24,8 +24,19 @@ cdef class ExceptionCatcher:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        # TODO have more exceptions
-        if self.exception.severity != _exception.UndefinedException:
-            raise GenericMagickException(<bytes>self.exception.reason + <bytes>self.exception.description)
+        if self.exception.severity == _exception.UndefinedException:
+            # Nothing happened.  Tell the context manager we didn't do anything
+            return False
 
-        return False
+        # Uhoh.  Convert an exception.
+        # TODO have more exception classes
+
+        # An exception's description tends to be blank; the actual message
+        # is in `reason`
+        cdef bytes message
+        if self.exception.reason == NULL:
+            message = b''
+        else:
+            message = self.exception.reason
+
+        raise GenericMagickException(message)
