@@ -7,7 +7,7 @@ cimport libc.stdio
 
 from collections import namedtuple
 
-from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _resize
+from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _property, _resize
 from sanpera.dimension import Offset, Point, Size
 from sanpera.exception cimport ExceptionCatcher
 
@@ -264,6 +264,35 @@ cdef class Image:
             self._stack.page.y != 0 or
             self._stack.page.width != self._stack.columns or
             self._stack.page.height != self._stack.rows)
+
+    # TODO this will have to become a proxy thing for it to support assignment
+    # TODO i am not a huge fan of this name, but 'metadata' is too expansive
+    # TODO can the same property appear multiple times?  cf PNG text chunks
+    # TODO this prefixing thing sucks as UI, and stuff like dates should be parsed
+    @property
+    def raw_properties(self):
+        cdef char* prop = NULL
+        cdef dict ret = {}
+
+        # TODO may need SyncImageProfiles() somewhere?  it updates EXIF res and
+        # orientation
+
+        # This tricks IM into actually reading the EXIF properties...
+        _property.GetImageProperty(self._stack, "exif:*")
+
+        _property.ResetImagePropertyIterator(self._stack)
+        while True:
+            # XXX this only examines the top image uhoh.  do we care?  what
+            # happens if i load a GIF; what does each frame say?  what happens
+            # if i have multiple images with different props and save as one
+            # image?
+            prop = _property.GetNextImageProperty(self._stack)
+            if prop == NULL:
+                break
+
+            ret[<bytes>prop] = <bytes>_property.GetImageProperty(self._stack, prop)
+
+        return ret
 
 
     ### the good stuff
