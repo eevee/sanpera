@@ -1,7 +1,7 @@
 from cpython cimport bool
 
 import sanpera.core
-from sanpera.exception cimport ExceptionCatcher
+from sanpera.exception cimport MagickException
 from sanpera._magick_api cimport _magick, _memory
 
 class ImageFormat:
@@ -27,12 +27,13 @@ cdef _get_formats():
 
     cdef _magick.MagickInfo** magick_infos
     cdef size_t num_formats
-    cdef ExceptionCatcher exc
-    with ExceptionCatcher() as exc:
-        # Snag the list of known supported image formats
-        # nb: the cast is just to drop the 'const' on the return value type
-        magick_infos = <_magick.MagickInfo**> _magick.GetMagickInfoList(
-            "*", &num_formats, exc.exception);
+    cdef MagickException exc = MagickException()
+
+    # Snag the list of known supported image formats
+    # nb: the cast is just to drop the 'const' on the return value type
+    magick_infos = <_magick.MagickInfo**> _magick.GetMagickInfoList(
+        "*", &num_formats, exc.ptr)
+    exc.check()
 
     cdef int i
     cdef str name

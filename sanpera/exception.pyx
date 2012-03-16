@@ -17,35 +17,30 @@ class MissingFormatError(SanperaError):
 class EmptyImageError(SanperaError):
     message = "Can't write an image that has zero frames"
 
-cdef class ExceptionCatcher:
-    """Context-manager object.  Create it and feed its `exception` attribute to
-    a C API call that wants an `ExceptionInfo` object.  If there seems to be an
-    exception set at the end of the `with` block, it will be translated into a
-    Python exception.
+cdef class MagickException:
+    """Refcounty wrapper for an ImageMagick exception.  Create it and feed its
+    `ptr` attribute to a C API call that wants an `ExceptionInfo` object,
+    then call `check()`.  If there seems to be an exception set, it'll be
+    translated into a Python exception.
     """
 
     # Defined in exception.pxd
-    #cdef _exception.ExceptionInfo* exception
+    #cdef _exception.ExceptionInfo* ptr
 
     def __cinit__(self):
-        self.exception = _exception.AcquireExceptionInfo()
+        self.ptr = _exception.AcquireExceptionInfo()
 
     def __dealloc__(self):
-        _exception.DestroyExceptionInfo(self.exception)
+        _exception.DestroyExceptionInfo(self.ptr)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.exception.severity == _exception.UndefinedException:
-            # Nothing happened.  Tell the context manager we didn't do anything
-            return False
-
-        # Uhoh.  Convert an exception.
-        convert_magick_exception(self.exception)
+    def check(self):
+        check_magick_exception(self.ptr)
 
 
-cdef convert_magick_exception(_exception.ExceptionInfo* exc):
+cdef check_magick_exception(_exception.ExceptionInfo* exc):
+    """If the given `ExceptionInfo` pointer contains an exception, convert it
+    to a Python one and throw it.
+    """
     if exc == NULL or exc.severity == _exception.UndefinedException:
         return
 
@@ -59,4 +54,5 @@ cdef convert_magick_exception(_exception.ExceptionInfo* exc):
     else:
         message = exc.reason
 
+    raise GenericMagickError(message + ' ' + str(<int>exc.severity))
     raise GenericMagickError(message)

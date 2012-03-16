@@ -9,7 +9,7 @@ cimport libc.stdio
 from collections import namedtuple
 
 from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _pixel, _property, _resize
-from sanpera.exception cimport ExceptionCatcher, convert_magick_exception
+from sanpera.exception cimport MagickException, check_magick_exception
 
 from sanpera.dimension import Offset, Point, Size
 from sanpera.exception import EmptyImageError, MissingFormatError
@@ -136,15 +136,15 @@ cdef class Image:
         cdef Image self = cls()
         cdef _pixel.MagickPixelPacket color
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
+        cdef MagickException exc = MagickException()
 
         try:
             # XXX this returns a status value; do something with that
-            with ExceptionCatcher() as exc:
-                _color.QueryMagickColor("#00000000", &color, exc.exception)
+            _color.QueryMagickColor("#00000000", &color, exc.ptr)
+            exc.check()
 
             self._stack = _image.NewMagickImage(image_info, size.width, size.height, &color)
-            convert_magick_exception(&self._stack.exception)
+            check_magick_exception(&self._stack.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -158,7 +158,7 @@ cdef class Image:
             cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
+        cdef MagickException exc = MagickException()
         cdef int ret
 
         cdef Image self = cls()
@@ -167,8 +167,8 @@ cdef class Image:
             # Force reading from this file descriptor
             image_info.file = fh
 
-            with ExceptionCatcher() as exc:
-                self._stack = _constitute.ReadImage(image_info, exc.exception)
+            self._stack = _constitute.ReadImage(image_info, exc.ptr)
+            exc.check()
 
             # Blank out the filename so IM doesn't try to write to it later
             self._stack.filename[0] = <char>0
@@ -184,13 +184,14 @@ cdef class Image:
 
     @classmethod
     def from_buffer(type cls, bytes buf not None):
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef MagickException exc = MagickException()
+
         cdef Image self = cls()
 
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
         try:
-            with ExceptionCatcher() as exc:
-                self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.exception)
+            self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.ptr)
+            exc.check()
 
             # Blank out the filename so IM doesn't try to write to it later --
             # yes, this is from an in-memory buffer, but sometimes IM will
@@ -216,7 +217,6 @@ cdef class Image:
             cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
         cdef int ret
 
         try:
@@ -234,9 +234,8 @@ cdef class Image:
                 raise MissingFormatError
             # TODO detect format from filename if explicitly asked to do so
 
-            with ExceptionCatcher() as exc:
-                _constitute.WriteImage(image_info, self._stack)
-                _exception.InheritException(exc.exception, &self._stack.exception)
+            _constitute.WriteImage(image_info, self._stack)
+            check_magick_exception(&self._stack.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -249,7 +248,7 @@ cdef class Image:
             raise EmptyImageError
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
+        cdef MagickException exc = MagickException()
         cdef size_t length = 0
         cdef void* cbuf = NULL
         cdef bytes buf
@@ -265,8 +264,8 @@ cdef class Image:
                 # Uhoh; no format provided and nothing given by caller
                 raise MissingFormatError
 
-            with ExceptionCatcher() as exc:
-                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.exception)
+            cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.ptr)
+            exc.check()
 
             buf = (<unsigned char*> cbuf)[:length]
             _memory.RelinquishMagickMemory(cbuf)
@@ -318,11 +317,12 @@ cdef class Image:
     def append(self, ImageFrame other):
         """Appends a copy of the given frame to this image."""
         cdef _image.Image* cloned_frame
-        cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            # 0, 0 => size; 0x0 means to reuse the same pixel cache
-            # 1 => orphan; clear the previous/next pointers
-            cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, exc.exception)
+        cdef MagickException exc = MagickException()
+
+        # 0, 0 => size; 0x0 means to reuse the same pixel cache
+        # 1 => orphan; clear the previous/next pointers
+        cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, exc.ptr)
+        exc.check()
 
         _list.AppendImageToList(&self._stack, cloned_frame)
         self._frames.append(_ImageFrame_factory(cloned_frame))
@@ -330,9 +330,10 @@ cdef class Image:
     def extend(self, Image other not None):
         """Appends a copy of each of the given image's frames to this image."""
         cdef _image.Image* cloned_stack
-        cdef ExceptionCatcher exc
-        with ExceptionCatcher() as exc:
-            cloned_stack = _list.CloneImageList(other._stack, exc.exception)
+        cdef MagickException exc = MagickException()
+
+        cloned_stack = _list.CloneImageList(other._stack, exc.ptr)
+        exc.check()
 
         _list.AppendImageToList(&self._stack, cloned_stack)
         self._setup_frames(cloned_stack)
@@ -414,22 +415,19 @@ cdef class Image:
     def resize(self, size):
         size = Size.coerce(size)
 
-        # TODO percents
-        # TODO < > ^ ! ...
-        # XXX should size be a geometry object or summat
         # TODO allow picking a filter
         # TODO allow messing with blur?
 
         cdef Image new = self.__class__()
         cdef _image.Image* p = self._stack
         cdef _image.Image* new_frame
-        cdef ExceptionCatcher exc
+        cdef MagickException exc = MagickException()
 
         while p:
-            with ExceptionCatcher() as exc:
-                new_frame = _resize.ResizeImage(
-                    p, size.width, size.height,
-                    _image.UndefinedFilter, 1.0, exc.exception)
+            new_frame = _resize.ResizeImage(
+                p, size.width, size.height,
+                _image.UndefinedFilter, 1.0, exc.ptr)
+            exc.check()
 
             _list.AppendImageToList(&new._stack, new_frame)
             p = _list.GetNextImageInList(p)

@@ -1,6 +1,6 @@
 from sanpera._magick_api cimport _exception
 
-cdef class ExceptionCatcher:
-    cdef _exception.ExceptionInfo* exception
+cdef class MagickException:
+    cdef _exception.ExceptionInfo* ptr
 
-cdef convert_magick_exception(_exception.ExceptionInfo*)
+cdef check_magick_exception(_exception.ExceptionInfo*)
