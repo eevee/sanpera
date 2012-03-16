@@ -18,7 +18,7 @@ def find_image(path):
 
 def get_image(path):
     """Return a test data image, as an `Image` object."""
-    return Image.read(open(find_image(path)))
+    return Image.read(find_image(path))
 
 
 def assert_identical(img1, img2):

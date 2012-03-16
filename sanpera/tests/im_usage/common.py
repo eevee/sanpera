@@ -82,7 +82,7 @@ class ImageOperationRegistry(object):
                 words,
                 cwd=util.data_root(),
             ).wait()
-            expected = Image.read(tempfiles[0])
+            expected = Image.from_buffer(tempfiles[0].read())
 
         finally:
             for f in tempfiles:

@@ -2,6 +2,7 @@ from sanpera._magick_api cimport _common, _exception
 from sanpera._magick_api._colorspace cimport ColorspaceType
 from sanpera._magick_api._common cimport MagickBooleanType, MagickPassFail
 from sanpera._magick_api._exception cimport ExceptionInfo, ExceptionType
+from sanpera._magick_api._pixel cimport MagickPixelPacket
 from sanpera._magick_api._timer cimport TimerInfo
 
 # XXX may need: forward, colorspace, error, timer
@@ -449,10 +450,12 @@ cdef extern from "magick/image.h":
 
     ExceptionType CatchImageException(Image*)
 
-    Image* AllocateImage(ImageInfo*)
+    Image* AcquireImage(ImageInfo*)
     Image* AppendImages(Image*, unsigned int, ExceptionInfo*)
     Image* CloneImage(Image*, unsigned long, unsigned long, unsigned int, ExceptionInfo*)
     Image* GetImageClipMask(Image*, ExceptionInfo*)
+    Image* NewMagickImage(ImageInfo*, size_t, size_t, MagickPixelPacket*)
+
     Image* ReferenceImage(Image*)
 
     ImageInfo* CloneImageInfo(ImageInfo*)
@@ -461,28 +464,35 @@ cdef extern from "magick/image.h":
 
     int GetImageGeometry(Image*, char*, unsigned int, RectangleInfo*)
 
+    MagickBooleanType ClipImage(Image*)
+    MagickBooleanType ClipImagePath(Image*, char*, MagickBooleanType)
+    MagickBooleanType GetImageAlphaChannel(Image*)
     MagickBooleanType IsTaintImage(Image*)
-    MagickBooleanType IsSubimage(char*, unsigned int)
+    MagickBooleanType IsMagickConflict(char*)
+    MagickBooleanType IsHighDynamicRangeImage(Image*, ExceptionInfo*)
+    MagickBooleanType IsImageObject(Image*)
+    MagickBooleanType ListMagickInfo(FILE*, ExceptionInfo*)
+    MagickBooleanType ModifyImage(Image**, ExceptionInfo*)
+    MagickBooleanType ResetImagePage(Image*, char*)
+    MagickBooleanType SeparateImageChannel(Image*, ChannelType)
+    MagickBooleanType SetImageAlphaChannel(Image*, AlphaChannelType)
+    MagickBooleanType SetImageBackgroundColor(Image*)
+    MagickBooleanType SetImageClipMask(Image*, Image*)
+    MagickBooleanType SetImageColor(Image*, MagickPixelPacket*)
+    MagickBooleanType SetImageExtent(Image*, size_t, size_t)
+    MagickBooleanType SetImageInfo(ImageInfo*, unsigned int, ExceptionInfo*)
+    MagickBooleanType SetImageMask(Image*, Image*)
+    MagickBooleanType SetImageOpacity(Image*, Quantum)
+    MagickBooleanType SetImageChannels(Image*, size_t)
+    MagickBooleanType SetImageStorageClass(Image*, ClassType)
+    MagickBooleanType SetImageType(Image*, ImageType)
+    MagickBooleanType StripImage(Image*)
+    MagickBooleanType SyncImage(Image*)
+    MagickBooleanType SyncImageSettings(ImageInfo*, Image*)
+    MagickBooleanType SyncImagesSettings(ImageInfo*, Image*)
 
-    # From ye docs: Functions which return unsigned int to indicate operation pass/fail
-    # XXX be careful with these; perhaps wrap and only use the wrappers
-    MagickPassFail AddDefinitions(ImageInfo* image_info, char* options, ExceptionInfo* exception)
-    MagickPassFail AnimateImages(ImageInfo* image_info, Image* image)
-    MagickPassFail ClipImage(Image*)
-    MagickPassFail ClipPathImage(Image* image, char* pathname, MagickBooleanType inside)
-    MagickPassFail DisplayImages(ImageInfo* image_info, Image* image)
-    MagickPassFail RemoveDefinitions(ImageInfo* image_info, char* options)
-    MagickPassFail SetImage(Image*, Quantum)
-    MagickPassFail SetImageClipMask(Image* image, Image* clip_mask)
-    MagickPassFail SetImageDepth(Image*, unsigned long)
-    MagickPassFail SetImageInfo(ImageInfo* image_info, unsigned int flags, ExceptionInfo* exception)
-    MagickPassFail SetImageType(Image*, ImageType)
-    MagickPassFail SyncImage(Image*)
-    
     void AllocateNextImage(ImageInfo*, Image*)
     void DestroyImage(Image*)
     void DestroyImageInfo(ImageInfo*)
     void GetImageException(Image*, ExceptionInfo*)
     void GetImageInfo(ImageInfo*)
-    void ModifyImage(Image**, ExceptionInfo*)
-    void SetImageOpacity(Image*, unsigned int)

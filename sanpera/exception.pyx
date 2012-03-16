@@ -2,7 +2,20 @@
 
 from sanpera._magick_api cimport _exception
 
-class GenericMagickException(Exception): pass
+class SanperaError(Exception):
+    message = None
+
+    def __init__(self):
+        if self.message:
+            super(SanperaError, self).__init__(self.message)
+
+class GenericMagickError(SanperaError): pass
+
+class MissingFormatError(SanperaError):
+    message = "Refusing to guess image format; please provide one explicitly"
+
+class EmptyImageError(SanperaError):
+    message = "Can't write an image that has zero frames"
 
 cdef class ExceptionCatcher:
     """Context-manager object.  Create it and feed its `exception` attribute to
@@ -29,14 +42,21 @@ cdef class ExceptionCatcher:
             return False
 
         # Uhoh.  Convert an exception.
-        # TODO have more exception classes
+        convert_magick_exception(self.exception)
 
-        # An exception's description tends to be blank; the actual message
-        # is in `reason`
-        cdef bytes message
-        if self.exception.reason == NULL:
-            message = b''
-        else:
-            message = self.exception.reason
 
-        raise GenericMagickException(message)
+cdef convert_magick_exception(_exception.ExceptionInfo* exc):
+    if exc == NULL or exc.severity == _exception.UndefinedException:
+        return
+
+    # TODO have more exception classes
+
+    # An exception's description tends to be blank; the actual message
+    # is in `reason`
+    cdef bytes message
+    if exc.reason == NULL:
+        message = b''
+    else:
+        message = exc.reason
+
+    raise GenericMagickError(message)

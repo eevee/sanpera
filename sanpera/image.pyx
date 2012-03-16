@@ -2,14 +2,17 @@
 """
 from __future__ import division
 
+cimport cpython.exc
 cimport libc.string as libc_string
 cimport libc.stdio
 
 from collections import namedtuple
 
-from sanpera._magick_api cimport _blob, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _property, _resize
+from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _pixel, _property, _resize
+from sanpera.exception cimport ExceptionCatcher, convert_magick_exception
+
 from sanpera.dimension import Offset, Point, Size
-from sanpera.exception cimport ExceptionCatcher
+from sanpera.exception import EmptyImageError, MissingFormatError
 
 
 ### Spare declarations
@@ -119,31 +122,29 @@ cdef class Image:
 
     ### Constructors (input)
 
-    @classmethod
-    def read(type cls, fileobj not None):
-        # Check that the file is a file-like that we can read
-        try:
-            fileno = fileobj.fileno
-            mode = fileobj.mode
-        except AttributeError:
-            return cls.read_buffer(fileobj.read())
+    def __init__(self):
+        """Create a new image with zero frames.  This is /probably/ not what
+        you want; consider using `Image.new()` instead.
+        """
+        pass
 
-        if 'r' not in fileobj.mode and '+' not in fileobj.mode:
-            raise IOError("File not open for reading")
+    @classmethod
+    def new(type cls, size not None):
+        """Create a new image (with one frame) of the given size."""
+        size = Size.coerce(size)
 
         cdef Image self = cls()
-
-        # Populate an image info thing for IM to read
+        cdef _pixel.MagickPixelPacket color
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        libc_string.strncpy(image_info.filename, <char*>fileobj.name, _common.MaxTextExtent)
-        image_info.file = fdopen(fileno(), "r")
-        if image_info.file == NULL:
-            raise OSError("Couldn't create filehandle")
-
         cdef ExceptionCatcher exc
+
         try:
+            # XXX this returns a status value; do something with that
             with ExceptionCatcher() as exc:
-                self._stack = _constitute.ReadImage(image_info, exc.exception)
+                _color.QueryMagickColor("#00000000", &color, exc.exception)
+
+            self._stack = _image.NewMagickImage(image_info, size.width, size.height, &color)
+            convert_magick_exception(&self._stack.exception)
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -151,7 +152,38 @@ cdef class Image:
         return self
 
     @classmethod
-    def read_buffer(type cls, bytes buf not None):
+    def read(type cls, bytes filename not None):
+        cdef libc.stdio.FILE* fh = libc.stdio.fopen(<char*>filename, "rb")
+        if fh == NULL:
+            cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
+
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef ExceptionCatcher exc
+        cdef int ret
+
+        cdef Image self = cls()
+
+        try:
+            # Force reading from this file descriptor
+            image_info.file = fh
+
+            with ExceptionCatcher() as exc:
+                self._stack = _constitute.ReadImage(image_info, exc.exception)
+
+            # Blank out the filename so IM doesn't try to write to it later
+            self._stack.filename[0] = <char>0
+        finally:
+            _image.DestroyImageInfo(image_info)
+
+            ret = libc.stdio.fclose(fh)
+            if ret != 0:
+                cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
+
+        self._setup_frames()
+        return self
+
+    @classmethod
+    def from_buffer(type cls, bytes buf not None):
         cdef Image self = cls()
 
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
@@ -159,11 +191,88 @@ cdef class Image:
         try:
             with ExceptionCatcher() as exc:
                 self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.exception)
+
+            # Blank out the filename so IM doesn't try to write to it later --
+            # yes, this is from an in-memory buffer, but sometimes IM will
+            # write it to a tempfile to read it
+            self._stack.filename[0] = <char>0
         finally:
             _image.DestroyImageInfo(image_info)
 
         self._setup_frames()
         return self
+
+
+    ### Output
+    # XXX for all of these: check that the target format supports the number of images!
+    # TODO support the wacky sprintf style of dumping images out i guess
+
+    def write(self, bytes filename not None, bytes format=None):
+        if self._stack == NULL:
+            raise EmptyImageError
+
+        cdef libc.stdio.FILE* fh = libc.stdio.fopen(<char*>filename, "wb")
+        if fh == NULL:
+            cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
+
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef ExceptionCatcher exc
+        cdef int ret
+
+        try:
+            # Force writing to this file descriptor
+            image_info.file = fh
+
+            # Force writing to a single file
+            image_info.adjoin = _common.MagickTrue
+
+            if format:
+                # If the caller provided an explicit format, pass it along
+                libc_string.strncpy(image_info.magick, <char*>format, _common.MaxTextExtent)
+            elif self._stack.magick[0] == <char>0:
+                # Uhoh; no format provided and nothing given by caller
+                raise MissingFormatError
+            # TODO detect format from filename if explicitly asked to do so
+
+            with ExceptionCatcher() as exc:
+                _constitute.WriteImage(image_info, self._stack)
+                _exception.InheritException(exc.exception, &self._stack.exception)
+        finally:
+            _image.DestroyImageInfo(image_info)
+
+            ret = libc.stdio.fclose(fh)
+            if ret != 0:
+                cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
+
+    def to_buffer(self, bytes format=None):
+        if self._stack == NULL:
+            raise EmptyImageError
+
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef ExceptionCatcher exc
+        cdef size_t length = 0
+        cdef void* cbuf = NULL
+        cdef bytes buf
+
+        try:
+            # Force writing to a single file
+            image_info.adjoin = _common.MagickTrue
+
+            if format:
+                # If the caller provided an explicit format, pass it along
+                libc_string.strncpy(image_info.magick, <char*>format, _common.MaxTextExtent)
+            elif self._stack.magick[0] == <char>0:
+                # Uhoh; no format provided and nothing given by caller
+                raise MissingFormatError
+
+            with ExceptionCatcher() as exc:
+                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.exception)
+
+            buf = (<unsigned char*> cbuf)[:length]
+            _memory.RelinquishMagickMemory(cbuf)
+            return buf
+        finally:
+            _image.DestroyImageInfo(image_info)
 
 
     ### cdef utilities
@@ -172,8 +281,13 @@ cdef class Image:
         # Shared by constructors to read the frame list out of the new image
         assert not self._frames
 
-        if not start:
-            start = self._stack
+        cdef _image.Image* p
+
+        if start:
+            p = start
+        else:
+            p = self._stack
+
         while p:
             self._frames.append(_ImageFrame_factory(p))
             p = _list.GetNextImageInList(p)
@@ -322,62 +436,3 @@ cdef class Image:
 
         new._setup_frames()
         return new
-
-
-    ### output
-    # XXX for all of these: check that the target format supports the number of images!
-    # TODO allow specifying the target format  B)
-    # TODO support the wacky sprintf style of dumping images out i guess
-
-    def write(self, fileobj not None):
-        # XXX what if there are no images
-
-        # Check that the file is a file-like that we can write
-        try:
-            fileno = fileobj.fileno
-            mode = fileobj.mode
-        except AttributeError:
-            fileobj.write(self.to_buffer())
-
-        if 'w' not in fileobj.mode and 'a' not in fileobj.mode and '+' not in fileobj.mode:
-            raise IOError("File not open for writing")
-
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef ExceptionCatcher exc
-
-        try:
-            image_info.adjoin = _common.MagickTrue  # force writing a single file
-            # TODO fix this to allow selecting the target format
-            #libc_string.strncpy(self._stack.magick, "GIF", _common.MaxTextExtent)
-            image_info.file = fdopen(fileobj.fileno(), "w")
-            if image_info.file == NULL:
-                raise OSError("Couldn't create filehandle")
-
-            with ExceptionCatcher() as exc:
-                _constitute.WriteImage(image_info, self._stack)
-                _exception.InheritException(exc.exception, &self._stack.exception)
-        finally:
-            _image.DestroyImageInfo(image_info)
-
-    def to_buffer(self):
-        # XXX what if there are no images
-
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
-        cdef void* cbuf = NULL
-        cdef size_t length = 0
-        cdef ExceptionCatcher exc
-        cdef bytes buf
-
-        try:
-            image_info.adjoin = _common.MagickTrue  # force writing a single file
-            # TODO fix this to allow selecting the target format
-            #libc_string.strncpy(self._stack.magick, "GIF", _common.MaxTextExtent)
-
-            with ExceptionCatcher() as exc:
-                cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.exception)
-
-            buf = (<unsigned char*> cbuf)[:length]
-            _memory.RelinquishMagickMemory(cbuf)
-            return buf
-        finally:
-            _image.DestroyImageInfo(image_info)
