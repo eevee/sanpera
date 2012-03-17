@@ -129,7 +129,7 @@ cdef class Image:
         pass
 
     @classmethod
-    def new(type cls, size not None):
+    def new(type cls, size not None, *, fill='#000000'):
         """Create a new image (with one frame) of the given size."""
         size = Size.coerce(size)
 
@@ -140,7 +140,7 @@ cdef class Image:
 
         try:
             # XXX this returns a status value; do something with that
-            _color.QueryMagickColor("#00000000", &color, exc.ptr)
+            _color.QueryMagickColor(fill, &color, exc.ptr)
             exc.check()
 
             self._stack = _image.NewMagickImage(image_info, size.width, size.height, &color)

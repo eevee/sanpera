@@ -55,41 +55,43 @@ class ImageOperationRegistry(object):
         decorator = pytest.mark.parametrize(
             ('command', 'function'),
             self.operations)
-        return decorator(self._generic_python_test_function)
+        return decorator(self._make_generic_python_test_function())
 
     # TODO cache the created file, instead of creating it for both the python and command tests?
     # TODO this sorely needs a better way to specify the location of the temporary output file
     # TODO fix the finding of input files both in Python and below, too.
-    @staticmethod
-    def _generic_python_test_function(command, function):
-        """Template for `python_test_function`."""
-        tempfiles = []
+    def _make_generic_python_test_function(self):
+        def f(command, function):
+            """Template for `python_test_function`."""
+            tempfiles = []
 
-        # Run the command to get the expected output
-        try:
-            words = command.split()
-            for i, word in enumerate(words):
-                # Special tokens!
-                if word == 'OUT':
-                    # Output file
-                    f = tempfile.NamedTemporaryFile()
-                    tempfiles.append(f)
-                    words[i] = f.name
+            # Run the command to get the expected output
+            try:
+                words = command.split()
+                for i, word in enumerate(words):
+                    # Special tokens!
+                    if word == 'OUT':
+                        # Output file
+                        f = tempfile.NamedTemporaryFile()
+                        tempfiles.append(f)
+                        words[i] = 'miff:' + f.name
 
-            assert tempfiles, "need at least one OUT token"
+                assert tempfiles, "need at least one OUT token"
 
-            subprocess.Popen(
-                words,
-                cwd=util.data_root(),
-            ).wait()
-            expected = Image.from_buffer(tempfiles[0].read())
+                subprocess.Popen(
+                    words,
+                    cwd=util.data_root(),
+                ).wait()
+                expected = Image.from_buffer(tempfiles[0].read())
 
-        finally:
-            for f in tempfiles:
-                f.close()
+            finally:
+                for f in tempfiles:
+                    f.close()
 
-        # Run the Python code
-        actual = function()
+            # Run the Python code
+            actual = function()
 
-        # Compare
-        util.assert_identical(expected, actual)
+            # Compare
+            util.assert_identical(expected, actual)
+
+        return f
