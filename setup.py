@@ -33,6 +33,7 @@ setup(
     name='sanpera',
     cmdclass={'build_ext': build_ext},
     ext_modules=[
+        ext_module('color'),
         ext_module('core'),
         ext_module('exception'),
         ext_module('image'),

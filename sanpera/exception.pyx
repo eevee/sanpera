@@ -9,13 +9,17 @@ class SanperaError(Exception):
         if self.message:
             super(SanperaError, self).__init__(self.message)
 
-class GenericMagickError(SanperaError): pass
-
 class MissingFormatError(SanperaError):
     message = "Refusing to guess image format; please provide one explicitly"
 
 class EmptyImageError(SanperaError):
     message = "Can't write an image that has zero frames"
+
+
+# Translations of ImageMagick errors
+#class GenericMagickError(SanperaError): pass
+class GenericMagickError(Exception): pass
+
 
 cdef class MagickException:
     """Refcounty wrapper for an ImageMagick exception.  Create it and feed its

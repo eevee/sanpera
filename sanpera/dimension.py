@@ -93,6 +93,14 @@ class Size(namedtuple('Size', ('width', 'height'))):
 class Point(namedtuple('Point', ('x', 'y'))):
     __slots__ = ()
 
+    @classmethod
+    def coerce(cls, value):
+        if isinstance(value, cls):
+            return value
+
+        return cls(*value)
+
+
 
 class Offset(Point):
     __slots__ = ()

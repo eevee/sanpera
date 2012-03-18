@@ -8,17 +8,12 @@ cimport libc.stdio
 
 from collections import namedtuple
 
-from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _pixel, _property, _resize
+from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _paint, _pixel, _property, _resize, _transform
+from sanpera.color cimport Color
 from sanpera.exception cimport MagickException, check_magick_exception
 
 from sanpera.dimension import Offset, Point, Size
 from sanpera.exception import EmptyImageError, MissingFormatError
-
-
-### Spare declarations
-
-cdef extern from "stdio.h":
-    libc.stdio.FILE* fdopen(int fd, char *mode)
 
 # TODO name of the wrapped c pointer is wildly inconsistent
 # TODO i am probably leaking like a sieve here
@@ -129,21 +124,20 @@ cdef class Image:
         pass
 
     @classmethod
-    def new(type cls, size not None, *, fill='#000000'):
+    def new(type cls, size not None, *, Color fill=None):
         """Create a new image (with one frame) of the given size."""
         size = Size.coerce(size)
 
         cdef Image self = cls()
-        cdef _pixel.MagickPixelPacket color
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
 
         try:
-            # XXX this returns a status value; do something with that
-            _color.QueryMagickColor(fill, &color, exc.ptr)
-            exc.check()
+            if fill is None:
+                # TODO need a way to explicitly create a certain color
+                fill = Color.parse('#00000000')
 
-            self._stack = _image.NewMagickImage(image_info, size.width, size.height, &color)
+            self._stack = _image.NewMagickImage(image_info, size.width, size.height, &fill.c_struct)
             check_magick_exception(&self._stack.exception)
         finally:
             _image.DestroyImageInfo(image_info)
@@ -196,6 +190,39 @@ cdef class Image:
             # Blank out the filename so IM doesn't try to write to it later --
             # yes, this is from an in-memory buffer, but sometimes IM will
             # write it to a tempfile to read it
+            self._stack.filename[0] = <char>0
+        finally:
+            _image.DestroyImageInfo(image_info)
+
+        self._setup_frames()
+        return self
+
+    @classmethod
+    def from_builtin(type cls, bytes name not None):
+        """Returns one of the built-in ImageMagick images.
+
+        These are: granite, logo, netscape, rose, and wizard.
+        """
+        # Do the name validity check up here, to avoid any weird nonsense like
+        # 'rose[0]'
+        if name not in set(('granite', 'logo', 'netscape', 'rose', 'wizard')):
+            raise ValueError("No such builtin image {0!r}".format(name))
+
+        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef MagickException exc = MagickException()
+
+        cdef Image self = cls()
+        cdef bytes filename = "magick:" + name
+
+        try:
+            # Builtin images are specified by their filename and a magick of,
+            # er, "magick"
+            libc_string.strncpy(image_info.filename, <char*>filename, _common.MaxTextExtent)
+
+            self._stack = _constitute.ReadImage(image_info, exc.ptr)
+            exc.check()
+
+            # Blank out the filename so IM doesn't try to write to it later
             self._stack.filename[0] = <char>0
         finally:
             _image.DestroyImageInfo(image_info)
@@ -410,7 +437,12 @@ cdef class Image:
         return ret
 
 
-    ### the good stuff
+    ### The good stuff: physical changes
+    # TODO these are more complicated for multi-frame images.
+    # - if a frame isn't the size of the image, it shouldn't resize blindly to
+    #   the given size
+    # - cropping likewise needs to affect the stack as a whole
+    # ...or does IM do this already?  what's the diff between the resize functions?
 
     def resize(self, size):
         size = Size.coerce(size)
@@ -424,13 +456,67 @@ cdef class Image:
         cdef MagickException exc = MagickException()
 
         while p:
-            new_frame = _resize.ResizeImage(
-                p, size.width, size.height,
-                _image.UndefinedFilter, 1.0, exc.ptr)
-            exc.check()
+            try:
+                new_frame = _resize.ResizeImage(
+                    p, size.width, size.height,
+                    _image.UndefinedFilter, 1.0, exc.ptr)
+                exc.check()
+            except Exception:
+                _image.DestroyImage(new_frame)
 
             _list.AppendImageToList(&new._stack, new_frame)
             p = _list.GetNextImageInList(p)
 
         new._setup_frames()
         return new
+
+    # TODO i don't really like this argspec.  need a Rectangle class and
+    # accessors for common ops?
+    def crop(self, size, offset):
+        size = Size.coerce(size)
+        offset = Offset.coerce(offset)
+
+        cdef Image new = self.__class__()
+        cdef _image.Image* p = self._stack
+        cdef _image.Image* new_frame
+        cdef _image.RectangleInfo rect
+        cdef MagickException exc = MagickException()
+
+        rect.x = offset.x
+        rect.y = offset.y
+        rect.width = size.width
+        rect.height = size.height
+
+        while p:
+            try:
+                new_frame = _transform.CropImage(p, &rect, exc.ptr)
+                exc.check()
+            except Exception:
+                _image.DestroyImage(new_frame)
+
+            # Always repage after a crop; not doing this is unexpected and
+            # frankly insane
+            # TODO how necessary is this?  should it be done for frames?
+            new_frame.page.x = 0
+            new_frame.page.y = 0
+            new_frame.page.width = 0
+            new_frame.page.height = 0
+
+            _list.AppendImageToList(&new._stack, new_frame)
+            p = _list.GetNextImageInList(p)
+
+        new._setup_frames()
+        return new
+
+
+    ### The good stuff: color
+    # TODO these are really methods on frames, not images
+
+    def replace_color(self, Color color, Color replacement,
+            *, float fuzz = 0.0):
+
+        color.c_struct.fuzz = fuzz
+        replacement.c_struct.fuzz = fuzz
+
+        _paint.OpaquePaintImage(self._stack, &color.c_struct, &replacement.c_struct,
+            _common.MagickFalse)
