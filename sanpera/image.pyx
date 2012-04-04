@@ -89,6 +89,11 @@ cdef class ImageFrame:
     def __init__(self):
         raise TypeError("RawFrames cannot be instantiated directly")
 
+    @property
+    def size(self):
+        return Size(self._frame.columns, self._frame.rows)
+
+
 cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
     cdef ImageFrame self = ImageFrame.__new__(ImageFrame)
     self._set_frame(frame)
@@ -389,6 +394,14 @@ cdef class Image:
 
     @property
     def size(self):
+        """The image dimensions, as a `Size`.
+
+        Note that multi-frame images don't have a notion of intrinsic size for
+        the entire image, though particular formats may enforce that every
+        frame be the same size.  If the image has multiple frames, this returns
+        the size of the first frame, which is in line with most image-handling
+        software.
+        """
         return Size(self._stack.columns, self._stack.rows)
 
     @property
