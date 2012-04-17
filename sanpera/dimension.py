@@ -7,7 +7,9 @@ from collections import namedtuple
 
 # TODO cdef class to speed up the math?
 class Size(namedtuple('Size', ('width', 'height'))):
-    """Width and height of a rectangle."""
+    """I represent a width and a height: a rectangle on a plane with no
+    particular position.
+    """
 
     __slots__ = ()
 
@@ -44,6 +46,10 @@ class Size(namedtuple('Size', ('width', 'height'))):
             cls=self.__class__.__name__,
             width=self.width,
             height=self.height)
+
+    def __nonzero__(self):
+        """Sizes are only truey if they have a width or height."""
+        return self.width and self.height
 
     def __mul__(self, factor):
         return type(self)(self.width * factor, self.height * factor)
@@ -91,7 +97,13 @@ class Size(namedtuple('Size', ('width', 'height'))):
 
 
 class Point(namedtuple('Point', ('x', 'y'))):
+    """I'm a point in a boundless two-dimensional Cartesian plane."""
     __slots__ = ()
+
+    def __init__(self, *a, **kw):
+        super(Point, self).__init__(*a, **kw)
+
+        # TODO check for ints...?
 
     @classmethod
     def coerce(cls, value):
@@ -101,9 +113,78 @@ class Point(namedtuple('Point', ('x', 'y'))):
         return cls(*value)
 
 
+    ### Operators
 
-class Offset(Point):
-    __slots__ = ()
+    def __add__(self, other):
+        cls = type(self)
+
+        if isinstance(other, int):
+            return cls(x=self.x + other, y=self.y + other)
+        if isinstance(other, Offset):
+            return cls(x=self.x + other.x, y=self.y + other.y)
+
+        return NotImplemented
+
+    def __mul__(self, other):
+        cls = type(self)
+
+        if isinstance(other, int):
+            return cls(x=self.x * other, y=self.y * other)
+
+        return NotImplemented
+
+origin = Point(0, 0)
+
+Offset = Point
+zero = Offset(0, 0)
+
+
+class Rectangle(namedtuple('Rectangle', ('x1', 'y1', 'x2', 'y2'))):
+    def __init__(self, p1, p2):
+        # XXX assert tl, br
+        super(Rectangle, self).__init__(
+            x1=min(p1.x, p2.x),
+            y1=min(p1.y, p2.y),
+            x2=max(p1.x, p2.x),
+            y2=max(p1.y, p2.y),
+        )
+
+
+    @property
+    def size(self):
+        return Size(width=self.x2 - self.x1, height=self.y2 - self.y1)
+
+    @property
+    def position(self):
+        return Point(self.x1, self.y1)
 
     def __nonzero__(self):
-        return self.x or self.y
+        return self.x1 != self.x2 and self.y1 != self.y2
+
+    def __eq__(self, other):
+        if isinstance(other, Rectangle):
+            return (
+                self.x1 == other.x1 and
+                self.x2 == other.x2 and
+                self.y1 == other.y1 and
+                self.y2 == other.y2
+            )
+
+        return NotImplemented
+
+    def __contains__(self, other):
+        if isinstance(other, Rectangle):
+            return (
+                self.x1 <= other.x1 and
+                self.y1 <= other.y1 and
+                self.x2 >= other.x2 and
+                self.y2 >= other.y2
+            )
+        if isinstance(other, Point):
+            return (self.x1 <= other.x <= self.x2
+                and self.y1 <= other.y <= self.y2)
+
+        return NotImplemented
+
+
+# note: are size, point, and offset really different at all?  they're all just (x,y) vectors
