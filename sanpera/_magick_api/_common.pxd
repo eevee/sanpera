@@ -11,6 +11,21 @@ cdef extern from "magick/magick-config.h":
     pass
 
 cdef extern from "magick/magick-type.h":
+    int MAGICKCORE_QUANTUM_DEPTH
+    float MagickEpsilon
+    float MagickHuge
+    unsigned long MaxColormapSize
+    unsigned long MaxMap
+
+    # NOTE: Quantum can actually be either a float or int, depending on how
+    # ImageMagick was built.  C's weak typing to the rescue: we'll just always
+    # assume it's a float.  Er, double.
+    ctypedef double Quantum
+    double QuantumRange
+
+    ctypedef long MagickOffsetType
+    ctypedef unsigned long MagickSizeType
+
     ctypedef unsigned int MagickStatusType
 
 cdef extern from "magick/MagickCore.h":

@@ -25,3 +25,6 @@ cdef extern from "magick/pixel.h":
         #Quantum green
         #Quantum blue
         #Quantum opacity
+
+    double GetPixelRed(PixelPacket*)
+    double SetPixelRed(PixelPacket*, double)
