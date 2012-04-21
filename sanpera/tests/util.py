@@ -1,8 +1,13 @@
 """Test utilities only; no actual tests should appear in here!"""
 
+import contextlib
 import os.path
+import shutil
+import tempfile
 
 from sanpera.image import Image
+
+### Fetching resources
 
 def data_root():
     return os.path.join(
@@ -20,6 +25,20 @@ def get_image(path):
     """Return a test data image, as an `Image` object."""
     return Image.read(find_image(path))
 
+
+### Misc
+
+@contextlib.contextmanager
+def tmpdir():
+    dir = tempfile.mkdtemp()
+
+    try:
+        yield dir
+    finally:
+        shutil.rmtree(dir)
+
+
+### Particular assertions
 
 def assert_identical(img1, img2):
     """Compares two image objects and asserts that they represent the same
