@@ -6,7 +6,7 @@ See: http://www.imagemagick.org/Usage/resize/
 
 import os.path
 
-from sanpera.image import Image, Size
+from sanpera.image import Image
 from sanpera.tests.util import get_image
 from sanpera.tests.im_usage.common import ImageOperationRegistry
 

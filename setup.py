@@ -38,5 +38,6 @@ setup(
         ext_module('exception'),
         ext_module('image'),
         ext_module('format'),
+        ext_module('geometry'),
     ],
 )

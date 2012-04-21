@@ -10,9 +10,9 @@ from collections import namedtuple
 
 from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _paint, _pixel, _property, _resize, _transform
 from sanpera.color cimport Color
+from sanpera.geometry cimport Size, Rectangle, Vector
 from sanpera.exception cimport MagickException, check_magick_exception
 
-from sanpera.dimension import Offset, Point, Size
 from sanpera.exception import EmptyImageError, MissingFormatError
 
 # TODO name of the wrapped c pointer is wildly inconsistent
@@ -51,7 +51,7 @@ cdef class RectangleProxy:
 
     @property
     def offset(self):
-        return Offset(self.ptr.x, self.ptr.y)
+        return Vector(self.ptr.x, self.ptr.y)
 
 
 ### Frame
@@ -485,24 +485,16 @@ cdef class Image:
 
     # TODO i don't really like this argspec.  need a Rectangle class and
     # accessors for common ops?
-    def crop(self, size, offset):
-        size = Size.coerce(size)
-        offset = Offset.coerce(offset)
-
+    def crop(self, Rectangle rect):
         cdef Image new = self.__class__()
         cdef _image.Image* p = self._stack
         cdef _image.Image* new_frame
-        cdef _image.RectangleInfo rect
+        cdef _image.RectangleInfo rectinfo = rect.to_rect_info()
         cdef MagickException exc = MagickException()
-
-        rect.x = offset.x
-        rect.y = offset.y
-        rect.width = size.width
-        rect.height = size.height
 
         while p:
             try:
-                new_frame = _transform.CropImage(p, &rect, exc.ptr)
+                new_frame = _transform.CropImage(p, &rectinfo, exc.ptr)
                 exc.check()
             except Exception:
                 _image.DestroyImage(new_frame)
