@@ -33,6 +33,28 @@ def test_size_zero():
     assert size.x == 0
     assert size.y == 0
 
+
+def test_size_fit_area():
+    size = geom.Size(100, 100)
+    assert size.fit_area(64) == geom.Size(8, 8)
+    assert size.fit_area(64, downscale=False) == size
+    assert size.fit_area(14400) == geom.Size(120, 120)
+    assert size.fit_area(14400, upscale=False) == size
+
+    size = geom.Size(200, 300)
+    assert size.fit_area(100) == geom.Size(8, 12)
+    assert size.fit_area(7) == geom.Size(2, 3)
+    assert size.fit_area(8) == geom.Size(2, 4)
+    assert size.fit_area(9) == geom.Size(3, 3)
+    assert size.fit_area(10) == geom.Size(3, 3)
+    assert size.fit_area(11) == geom.Size(2, 5)
+
+    assert size.fit_area(7, emulate=True) == geom.Size(2, 3)
+    assert size.fit_area(8, emulate=True) == geom.Size(2, 3)
+    assert size.fit_area(9, emulate=True) == geom.Size(2, 4)
+    assert size.fit_area(10, emulate=True) == geom.Size(3, 4)
+    assert size.fit_area(11, emulate=True) == geom.Size(3, 4)
+
 def test_rect_zero():
     assert geom.Rectangle(0, 0, 10, 10)
     assert not geom.Rectangle(5, 5, 5, 10)

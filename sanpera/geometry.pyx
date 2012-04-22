@@ -144,6 +144,8 @@ cdef class Vector:
 
         if isinstance(pytwo, int):
             return cls(one._x * pytwo, one._y * pytwo)
+        if isinstance(pytwo, float):
+            return cls(int(one._x * pytwo + 0.5), int(one._y * pytwo + 0.5))
         if isinstance(pytwo, Vector):
             two = pytwo
             return cls(one._x * two._x, one._y * two._y)
@@ -172,6 +174,10 @@ cdef class Size(Vector):
     property diagonal:
         def __get__(self):
             return self.magnitude
+
+    property area:
+        def __get__(self):
+            return self._x * self._y
 
 
     def __init__(self, unsigned int width, unsigned int height):
@@ -202,6 +208,71 @@ cdef class Size(Vector):
         """
         cdef Vector vec = Vector.coerce(point)
         return Rectangle(vec._x, vec._y, vec._x + self._x, vec._y + self._y)
+
+    def fit_area(self, int area, bool upscale not None=True, bool downscale not None=True,
+            bool emulate not None=False):
+        """Scale this Size proportionally to have approximately the given
+        number of pixels (but no more).
+
+        Exceptionally large images may not be able to fit in a given area; for
+        example, a 1000x1 image can't be scaled to fit within 100 pixels.  In
+        that case, this method raises a `ValueError`.
+
+        Set `upscale` or `downscale` to `False` to prevent resizing in either
+        direction.
+        """
+        # A note on ImageMagick's actual behavior:
+        # In 6.7.3, the width and height are merely truncated.
+        # In 6.7.6, the width and height are rounded.
+        # The "emulate" flag emulates the latter behavior, which violates the
+        # guarantee that the new size is no larger than the requested area.
+
+        if area <= 0:
+            raise ValueError("Area to fit must be positive")
+
+        cdef int current_area = self._x * self._y
+
+        if not upscale and current_area < area:
+            return self
+
+        if not downscale and current_area > area:
+            return self
+
+        cls = self.__class__
+        cdef float ratio = math.sqrt(area / current_area)
+
+        if emulate:
+            return cls(int(self._x * ratio + 0.5), int(self._y * ratio + 0.5))
+
+        cdef int approx_width = int(self._x * ratio)
+        cdef int approx_height = int(self._y * ratio)
+
+        # Find the combination of rounding the new width and height that gets
+        # closest to the desired area.
+        cdef int best_width
+        cdef int best_height
+        cdef int best_area = 0
+
+        cdef int temp_width
+        cdef int temp_height
+        cdef int temp_area
+
+        cdef int dw
+        cdef int dh
+
+        for dw, dh in ((0, 0), (0, 1), (1, 0)):
+            temp_width = approx_width + dw
+            temp_height = approx_height + dh
+            temp_area = temp_width * temp_height
+            if best_area < temp_area <= area:
+                best_width = temp_width
+                best_height = temp_height
+                best_area = temp_area
+
+        if best_area == 0:
+            raise ValueError("Couldn't fit image to desired area")
+
+        return cls(best_width, best_height)
 
     def fit_inside(self, other, bool upscale not None=True, bool downscale not None=True):
         """Scale this Size proportionally to fit within the given bounds.
@@ -288,8 +359,6 @@ cdef class Rectangle:
 
 
     ### Special methods
-
-    # TODO repr omg
 
     def __repr__(self):
         return "<{cls} topleft=({x1!r}, {y1!r}) bottomright=({x2!r}, {y2!r})".format(
