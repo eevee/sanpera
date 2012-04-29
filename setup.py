@@ -31,13 +31,30 @@ def ext_module(module):
 
 setup(
     name='sanpera',
+    version='0.1a1',
+    description='Image manipulation library, powered by ImageMagick',
+    author='Eevee',
+    author_email='eevee.sanpera@veekun.com',
+    url='http://eevee.github.com/sanpera/',
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: ISC License (ISCL)',
+        'Programming Language :: Cython',
+        'Programming Language :: Python',
+        'Topic :: Multimedia :: Graphics',
+        'Topic :: Multimedia :: Graphics :: Graphics Conversion',
+        'Topic :: Software Development :: Libraries',
+    ],
+
+    packages=['sanpera'],
     cmdclass={'build_ext': build_ext},
     ext_modules=[
         ext_module('color'),
         ext_module('core'),
         ext_module('exception'),
-        ext_module('image'),
         ext_module('format'),
         ext_module('geometry'),
+        ext_module('image'),
     ],
 )
