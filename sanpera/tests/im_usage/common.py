@@ -13,6 +13,7 @@ Look at some of the actual modules to see how this works.
 """
 
 import os.path
+import shlex
 import subprocess
 import tempfile
 
@@ -60,6 +61,8 @@ class ImageOperationRegistry(object):
     # TODO cache the created file, instead of creating it for both the python and command tests?
     # TODO this sorely needs a better way to specify the location of the temporary output file
     # TODO fix the finding of input files both in Python and below, too.
+    # TODO failures result in a stack of useless frames
+    # TODO skips don't work
     def _make_generic_python_test_function(self):
         def f(command, function):
             """Template for `python_test_function`."""
@@ -67,7 +70,7 @@ class ImageOperationRegistry(object):
 
             # Run the command to get the expected output
             try:
-                words = command.split()
+                words = shlex.split(command)
                 for i, word in enumerate(words):
                     # Special tokens!
                     if word == 'OUT':

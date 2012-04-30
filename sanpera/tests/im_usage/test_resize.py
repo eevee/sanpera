@@ -8,7 +8,7 @@ import os.path
 
 import pytest
 
-from sanpera.image import Image
+from sanpera.image import Image, patterns
 from sanpera.tests.util import get_image
 from sanpera.tests.im_usage.common import ImageOperationRegistry
 
@@ -124,6 +124,28 @@ def resize_dragon_read():
 def resize_terminal_read():
     img = get_image('terminal.gif')
     return img.resize(img.size.fit_inside((64, 64)))
+
+
+### Other Resize Operators
+
+# convert -size 150x60 xc: -draw 'line 0,59 149,0' line_orig.gif
+# convert line_orig.gif  -sample 50x20  line_sample.gif
+@resize_tests.register('convert -size 150x60 xc: -draw "line 0,59 149,0" -sample 50x20 OUT')
+def resize_line_sample():
+    img = Image.new
+
+@resize_tests.register('convert -size 8x8 pattern:CrossHatch30 -scale 1000% OUT')
+def resize_scale_crosshatch():
+    img = patterns.crosshatch30.tile((8, 8))
+    return img.resize(img.size * 10, filter='box')
+
+@resize_tests.register('convert pattern:gray50 OUT')
+def resize_scale_gray_norm():
+    return patterns.gray50
+
+@resize_tests.register('convert pattern:gray50 -scale 36 OUT')
+def resize_scale_gray_mag():
+    return patterns.gray50.resize((36, 36), filter='box')
 
 # I am the actual test command  :)
 test_resize_command = resize_tests.python_test_function()

@@ -8,7 +8,7 @@ import os.path
 
 from sanpera.color import Color
 from sanpera.geometry import Size
-from sanpera.image import Image
+from sanpera.image import Image, builtins
 
 from sanpera.tests.util import get_image
 from sanpera.tests.im_usage.common import ImageOperationRegistry
@@ -35,9 +35,9 @@ def canvas_khaki_to_tomato():
 
 @canvas_tests.register('convert rose: -crop 1x1+40+30 +repage -scale 100x100! OUT')
 def canvas_rose_pixel():
-    img = Image.from_builtin('rose')
+    img = builtins.rose
     img = img.crop(Size(1, 1).at((40, 30)))
-    img = img.resize((100, 100))
+    img = img.resize((100, 100), filter='box')
     return img
 
 # I am the actual test command  :)
