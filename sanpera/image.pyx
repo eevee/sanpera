@@ -204,32 +204,27 @@ cdef class Image:
         return self
 
     @classmethod
-    def from_builtin(type cls, bytes name not None):
-        """Returns one of the built-in ImageMagick images.
+    def from_magick(type cls, bytes name not None):
+        """Passes a filename specifier directly to ImageMagick.
 
-        These are: granite, logo, netscape, rose, and wizard.
+        This allows reading from any of the magic pseudo-formats, like
+        `clipboard` and `null`.  Use with care with user input!
         """
-        # Do the name validity check up here, to avoid any weird nonsense like
-        # 'rose[0]'
-        if name not in set(('granite', 'logo', 'netscape', 'rose', 'wizard')):
-            raise ValueError("No such builtin image {0!r}".format(name))
-
         cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
 
         cdef Image self = cls()
-        cdef bytes filename = "magick:" + name
 
         try:
-            # Builtin images are specified by their filename and a magick of,
-            # er, "magick"
-            libc_string.strncpy(image_info.filename, <char*>filename, _common.MaxTextExtent)
+            libc_string.strncpy(image_info.filename, <char*>name, _common.MaxTextExtent)
 
             self._stack = _constitute.ReadImage(image_info, exc.ptr)
             exc.check()
 
-            # Blank out the filename so IM doesn't try to write to it later
+            # Blank out the filename and format so IM doesn't try to write them
+            # later
             self._stack.filename[0] = <char>0
+            self._stack.magick[0] = <char>0
         finally:
             _image.DestroyImageInfo(image_info)
 
@@ -548,3 +543,52 @@ cdef class Image:
 
         _paint.OpaquePaintImage(self._stack, &color.c_struct, &replacement.c_struct,
             _common.MagickFalse)
+
+
+# TODO this should probably not live in cython
+class BuiltinRegistry(object):
+    # XXX possibly spruce this up a bit to work better with other kinds of
+    # builtin enumerables
+
+    @classmethod
+    def create(cls, *names):
+        def decorator(f):
+            obj = cls(f, names)
+            obj.__doc__ = f.__doc__
+            return obj
+        return decorator
+
+    def __init__(self, factory, names):
+        self._factory = factory
+        self._names = frozenset(names)
+
+    def __getattr__(self, key):
+        if key not in self._names:
+            raise AttributeError
+
+        return self._factory(key)
+
+    def __iter__(self):
+        return self._names
+
+# There is, conveniently, no way to get a list of built-in images or patterns
+# out of ImageMagick.  So, er, here are manual lists.
+@BuiltinRegistry.create('granite', 'logo', 'netscape', 'rose', 'wizard')
+def builtins(name):
+    return Image.from_magick('magick:' + name)
+
+@BuiltinRegistry.create(
+    'bricks', 'checkerboard', 'circles', 'crosshatch', 'crosshatch30',
+    'crosshatch45', 'fishscales',
+    'gray0', 'gray5', 'gray10', 'gray15', 'gray20', 'gray25', 'gray30',
+    'gray35', 'gray40', 'gray45', 'gray50', 'gray55', 'gray60', 'gray65',
+    'gray70', 'gray75', 'gray80', 'gray85', 'gray90', 'gray95', 'gray100',
+    'hexagons', 'horizontal', 'horizontal2', 'horizontal3', 'horizontalsaw',
+    'hs_bdiagonal', 'hs_cross', 'hs_diagcross', 'hs_fdiagonal',
+    'hs_horizontal', 'hs_vertical', 'left30', 'left45', 'leftshingle',
+    'octagons', 'right30', 'right45', 'rightshingle', 'smallfishscales',
+    'vertical', 'vertical2', 'vertical3', 'verticalbricks',
+    'verticalleftshingle', 'verticalrightshingle', 'verticalsaw',
+)
+def patterns(name):
+    return Image.from_magick('pattern:' + name)
