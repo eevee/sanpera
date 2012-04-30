@@ -8,7 +8,7 @@ cimport libc.stdio
 
 from collections import namedtuple
 
-from sanpera._magick_api cimport _blob, _color, _common, _constitute, _exception, _image, _list, _log, _magick, _memory, _paint, _pixel, _property, _resize, _transform
+from sanpera._magick_api cimport _blob, _color, _common, _composite, _constitute, _exception, _image, _list, _log, _magick, _memory, _paint, _pixel, _property, _resize, _transform
 from sanpera.color cimport Color
 from sanpera.geometry cimport Size, Rectangle, Vector
 from sanpera.exception cimport MagickException, check_magick_exception
@@ -21,6 +21,7 @@ from sanpera.exception import EmptyImageError, MissingFormatError
 # TODO docstrings
 # TODO expose more properties and whatever to python-land
 # TODO threadsafety?
+# TODO check boolean return values more often
 
 
 ### Little helpers
@@ -457,7 +458,7 @@ cdef class Image:
     # - cropping likewise needs to affect the stack as a whole
     # ...or does IM do this already?  what's the diff between the resize functions?
 
-    def resize(self, size):
+    def resize(self, size, filter=None):
         size = Size.coerce(size)
 
         # TODO allow picking a filter
@@ -468,11 +469,21 @@ cdef class Image:
         cdef _image.Image* new_frame
         cdef MagickException exc = MagickException()
 
+        cdef _image.FilterTypes c_filter = _image.UndefinedFilter
+        if filter == 'box':
+            c_filter = _image.BoxFilter
+
         while p:
             try:
-                new_frame = _resize.ResizeImage(
-                    p, size.width, size.height,
-                    _image.UndefinedFilter, 1.0, exc.ptr)
+                if c_filter == _image.BoxFilter:
+                    # Use the faster ScaleImage in this special case
+                    new_frame = _resize.ScaleImage(
+                        p, size.width, size.height, exc.ptr)
+                else:
+                    new_frame = _resize.ResizeImage(
+                        p, size.width, size.height,
+                        c_filter, 1.0, exc.ptr)
+
                 exc.check()
             except Exception:
                 _image.DestroyImage(new_frame)
@@ -511,6 +522,18 @@ cdef class Image:
             p = _list.GetNextImageInList(p)
 
         new._setup_frames()
+        return new
+
+    # TODO i should probably live on Frame
+    def tile(self, size):
+        size = Size.coerce(size)
+
+        cdef Image new = self.new(size)
+
+        # TODO this returns a bool?
+        _composite.TextureImage(new._stack, self._stack)
+        check_magick_exception(&self._stack.exception)
+
         return new
 
 
