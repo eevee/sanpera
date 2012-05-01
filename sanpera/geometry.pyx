@@ -5,7 +5,7 @@ from __future__ import division
 
 from cpython cimport bool
 
-from sanpera._magick_api cimport _image
+from sanpera cimport c_api
 
 import math
 
@@ -396,8 +396,8 @@ cdef class Rectangle:
 
     ### Conversion
 
-    cdef _image.RectangleInfo to_rect_info(self):
-        cdef _image.RectangleInfo rectinfo
+    cdef c_api.RectangleInfo to_rect_info(self):
+        cdef c_api.RectangleInfo rectinfo
 
         rectinfo.x = self._x1
         rectinfo.y = self._y1

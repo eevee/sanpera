@@ -1,6 +1,6 @@
 """Colors."""
 
-from sanpera._magick_api cimport _color, _common, _pixel
+from sanpera cimport c_api
 
 from sanpera.exception cimport MagickException
 
@@ -10,7 +10,7 @@ cdef class Color:
     """Represents a color as RGBA."""
 
     # Declared in pxd
-    #cdef _pixel.MagickPixelPacket c_struct
+    #cdef c_api.MagickPixelPacket c_struct
 
     def __init__(self):
         pass
@@ -27,9 +27,9 @@ cdef class Color:
 
         cdef Color self = cls()
         cdef MagickException exc = MagickException()
-        cdef _common.MagickStatusType success
+        cdef c_api.MagickStatusType success
 
-        success = _color.QueryMagickColor(name, &self.c_struct, exc.ptr)
+        success = c_api.QueryMagickColor(name, &self.c_struct, exc.ptr)
         exc.check()
         if not success:
             raise ValueError("Can't find a color named {0!r}".format(name))

@@ -5,7 +5,7 @@ before anything else; user code should never have to worry about it.
 """
 import atexit
 
-from sanpera._magick_api cimport _common, _magick
+from sanpera cimport c_api
 
 
 ### Setup
@@ -14,11 +14,11 @@ cdef extern from "Python.h":
     char* Py_GetProgramFullPath()
 
 # Let ImageMagick do its setup stuff
-_magick.MagickCoreGenesis(Py_GetProgramFullPath(), _common.MagickFalse)
+c_api.MagickCoreGenesis(Py_GetProgramFullPath(), c_api.MagickFalse)
 
 
 ### Teardown
 
 def _shutdown():
-    _magick.MagickCoreTerminus()
+    c_api.MagickCoreTerminus()
 atexit.register(_shutdown)

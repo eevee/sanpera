@@ -1,4 +1,4 @@
-from sanpera._magick_api cimport _pixel
+from sanpera cimport c_api
 
 cdef class Color:
-    cdef _pixel.MagickPixelPacket c_struct
+    cdef c_api.MagickPixelPacket c_struct

@@ -49,6 +49,8 @@ def assert_identical(img1, img2):
     # TODO this is RGB because it stores no metadata whatsoever.  a better
     # solution would be an in-process comparison; for bonus points, show the
     # diff in some useful manner!
+    img1.bit_depth = 8
+    img2.bit_depth = 8
     buf1 = img1.to_buffer(format='rgb')
     buf2 = img2.to_buffer(format='rgb')
     assert buf1 == buf2

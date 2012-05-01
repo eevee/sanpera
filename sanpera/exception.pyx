@@ -1,6 +1,6 @@
 """Deal with ImageMagick errors."""
 
-from sanpera._magick_api cimport _exception
+from sanpera cimport c_api
 
 class SanperaError(Exception):
     message = None
@@ -29,23 +29,23 @@ cdef class MagickException:
     """
 
     # Defined in exception.pxd
-    #cdef _exception.ExceptionInfo* ptr
+    #cdef c_api.ExceptionInfo* ptr
 
     def __cinit__(self):
-        self.ptr = _exception.AcquireExceptionInfo()
+        self.ptr = c_api.AcquireExceptionInfo()
 
     def __dealloc__(self):
-        _exception.DestroyExceptionInfo(self.ptr)
+        c_api.DestroyExceptionInfo(self.ptr)
 
     def check(self):
         check_magick_exception(self.ptr)
 
 
-cdef check_magick_exception(_exception.ExceptionInfo* exc):
+cdef check_magick_exception(c_api.ExceptionInfo* exc):
     """If the given `ExceptionInfo` pointer contains an exception, convert it
     to a Python one and throw it.
     """
-    if exc == NULL or exc.severity == _exception.UndefinedException:
+    if exc == NULL or exc.severity == c_api.UndefinedException:
         return
 
     # TODO have more exception classes

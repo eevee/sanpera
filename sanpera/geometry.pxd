@@ -1,6 +1,6 @@
 from cpython cimport bool
 
-from sanpera._magick_api cimport _image
+from sanpera cimport c_api
 
 cdef class Vector:
     cdef int _x
@@ -15,4 +15,4 @@ cdef class Rectangle:
     cdef int _y1
     cdef int _y2
 
-    cdef _image.RectangleInfo to_rect_info(self)
+    cdef c_api.RectangleInfo to_rect_info(self)

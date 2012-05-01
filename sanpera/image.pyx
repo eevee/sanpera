@@ -3,12 +3,13 @@
 from __future__ import division
 
 cimport cpython.exc
+from cython.operator cimport preincrement as inc
 cimport libc.string as libc_string
 cimport libc.stdio
 
 from collections import namedtuple
 
-from sanpera._magick_api cimport _blob, _color, _common, _composite, _constitute, _exception, _image, _list, _log, _magick, _memory, _paint, _pixel, _property, _resize, _transform
+from sanpera cimport c_api
 from sanpera.color cimport Color
 from sanpera.geometry cimport Size, Rectangle, Vector
 from sanpera.exception cimport MagickException, check_magick_exception
@@ -22,12 +23,13 @@ from sanpera.exception import EmptyImageError, MissingFormatError
 # TODO expose more properties and whatever to python-land
 # TODO threadsafety?
 # TODO check boolean return values more often
+# TODO really, really want to be able to dump out an image or info struct.  really.
 
 
 ### Little helpers
 
 cdef class RectangleProxy:
-    cdef _image.RectangleInfo* ptr
+    cdef c_api.RectangleInfo* ptr
     cdef owner
 
     @property
@@ -67,25 +69,25 @@ cdef class ImageFrame:
     # existing Image, the frame might persist after the image is destroyed, so
     # we need to use refcounting
 
-    cdef _image.Image* _frame
+    cdef c_api.Image* _frame
 
     def __cinit__(self):
         self._frame = NULL
 
     def __dealloc__(self):
         if self._frame:
-            _image.DestroyImage(self._frame)
+            c_api.DestroyImage(self._frame)
         self._frame = NULL
 
-    cdef _set_frame(self, _image.Image* other):
+    cdef _set_frame(self, c_api.Image* other):
         # Sets the wrapped frame, discarding the old one if necessary.
         # Only feed me a newly-created frame!  NEVER pass in another
         # ImageFrame's frame!
         if self._frame:
-            _image.DestroyImage(self._frame)
+            c_api.DestroyImage(self._frame)
 
         self._frame = other
-        _image.ReferenceImage(self._frame)
+        c_api.ReferenceImage(self._frame)
 
     def __init__(self):
         raise TypeError("RawFrames cannot be instantiated directly")
@@ -95,7 +97,7 @@ cdef class ImageFrame:
         return Size(self._frame.columns, self._frame.rows)
 
 
-cdef ImageFrame _ImageFrame_factory(_image.Image* frame):
+cdef ImageFrame _ImageFrame_factory(c_api.Image* frame):
     cdef ImageFrame self = ImageFrame.__new__(ImageFrame)
     self._set_frame(frame)
     return self
@@ -108,7 +110,7 @@ cdef class Image:
     library.
     """
 
-    cdef _image.Image* _stack
+    cdef c_api.Image* _stack
     cdef list _frames
 
     def __cinit__(self):
@@ -117,7 +119,7 @@ cdef class Image:
 
     def __dealloc__(self):
         if self._stack:
-            _list.DestroyImageList(self._stack)
+            c_api.DestroyImageList(self._stack)
         self._stack = NULL
 
 
@@ -135,7 +137,7 @@ cdef class Image:
         size = Size.coerce(size)
 
         cdef Image self = cls()
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
 
         try:
@@ -143,10 +145,10 @@ cdef class Image:
                 # TODO need a way to explicitly create a certain color
                 fill = Color.parse('#00000000')
 
-            self._stack = _image.NewMagickImage(image_info, size.width, size.height, &fill.c_struct)
+            self._stack = c_api.NewMagickImage(image_info, size.width, size.height, &fill.c_struct)
             check_magick_exception(&self._stack.exception)
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
         self._setup_frames()
         return self
@@ -157,7 +159,7 @@ cdef class Image:
         if fh == NULL:
             cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
 
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
         cdef int ret
 
@@ -167,13 +169,13 @@ cdef class Image:
             # Force reading from this file descriptor
             image_info.file = fh
 
-            self._stack = _constitute.ReadImage(image_info, exc.ptr)
+            self._stack = c_api.ReadImage(image_info, exc.ptr)
             exc.check()
 
             # Blank out the filename so IM doesn't try to write to it later
             self._stack.filename[0] = <char>0
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
             ret = libc.stdio.fclose(fh)
             if ret != 0:
@@ -184,13 +186,13 @@ cdef class Image:
 
     @classmethod
     def from_buffer(type cls, bytes buf not None):
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
 
         cdef Image self = cls()
 
         try:
-            self._stack = _blob.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.ptr)
+            self._stack = c_api.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.ptr)
             exc.check()
 
             # Blank out the filename so IM doesn't try to write to it later --
@@ -198,7 +200,7 @@ cdef class Image:
             # write it to a tempfile to read it
             self._stack.filename[0] = <char>0
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
         self._setup_frames()
         return self
@@ -210,15 +212,15 @@ cdef class Image:
         This allows reading from any of the magic pseudo-formats, like
         `clipboard` and `null`.  Use with care with user input!
         """
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
 
         cdef Image self = cls()
 
         try:
-            libc_string.strncpy(image_info.filename, <char*>name, _common.MaxTextExtent)
+            libc_string.strncpy(image_info.filename, <char*>name, c_api.MaxTextExtent)
 
-            self._stack = _constitute.ReadImage(image_info, exc.ptr)
+            self._stack = c_api.ReadImage(image_info, exc.ptr)
             exc.check()
 
             # Blank out the filename and format so IM doesn't try to write them
@@ -226,7 +228,7 @@ cdef class Image:
             self._stack.filename[0] = <char>0
             self._stack.magick[0] = <char>0
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
         self._setup_frames()
         return self
@@ -244,7 +246,7 @@ cdef class Image:
         if fh == NULL:
             cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
 
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef int ret
 
         try:
@@ -252,20 +254,20 @@ cdef class Image:
             image_info.file = fh
 
             # Force writing to a single file
-            image_info.adjoin = _common.MagickTrue
+            image_info.adjoin = c_api.MagickTrue
 
             if format:
                 # If the caller provided an explicit format, pass it along
-                libc_string.strncpy(image_info.magick, <char*>format, _common.MaxTextExtent)
+                libc_string.strncpy(image_info.magick, <char*>format, c_api.MaxTextExtent)
             elif self._stack.magick[0] == <char>0:
                 # Uhoh; no format provided and nothing given by caller
                 raise MissingFormatError
             # TODO detect format from filename if explicitly asked to do so
 
-            _constitute.WriteImage(image_info, self._stack)
+            c_api.WriteImage(image_info, self._stack)
             check_magick_exception(&self._stack.exception)
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
             ret = libc.stdio.fclose(fh)
             if ret != 0:
@@ -275,7 +277,7 @@ cdef class Image:
         if self._stack == NULL:
             raise EmptyImageError
 
-        cdef _image.ImageInfo* image_info = _image.CloneImageInfo(NULL)
+        cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef MagickException exc = MagickException()
         cdef size_t length = 0
         cdef void* cbuf = NULL
@@ -283,32 +285,32 @@ cdef class Image:
 
         try:
             # Force writing to a single file
-            image_info.adjoin = _common.MagickTrue
+            image_info.adjoin = c_api.MagickTrue
 
             if format:
                 # If the caller provided an explicit format, pass it along
-                libc_string.strncpy(image_info.magick, <char*>format, _common.MaxTextExtent)
+                libc_string.strncpy(image_info.magick, <char*>format, c_api.MaxTextExtent)
             elif self._stack.magick[0] == <char>0:
                 # Uhoh; no format provided and nothing given by caller
                 raise MissingFormatError
 
-            cbuf = _blob.ImageToBlob(image_info, self._stack, &length, exc.ptr)
+            cbuf = c_api.ImageToBlob(image_info, self._stack, &length, exc.ptr)
             exc.check()
 
             buf = (<unsigned char*> cbuf)[:length]
-            _memory.RelinquishMagickMemory(cbuf)
+            c_api.RelinquishMagickMemory(cbuf)
             return buf
         finally:
-            _image.DestroyImageInfo(image_info)
+            c_api.DestroyImageInfo(image_info)
 
 
     ### cdef utilities
 
-    cdef _setup_frames(self, _image.Image* start = NULL):
+    cdef _setup_frames(self, c_api.Image* start = NULL):
         # Shared by constructors to read the frame list out of the new image
         assert not self._frames
 
-        cdef _image.Image* p
+        cdef c_api.Image* p
 
         if start:
             p = start
@@ -317,14 +319,14 @@ cdef class Image:
 
         while p:
             self._frames.append(_ImageFrame_factory(p))
-            p = _list.GetNextImageInList(p)
+            p = c_api.GetNextImageInList(p)
 
 
     ### Sequence operations
 
     def __len__(self):
         # TODO optimize/cache?
-        return _list.GetImageListLength(self._stack)
+        return c_api.GetImageListLength(self._stack)
 
     def __nonzero__(self):
         return self._stack != NULL
@@ -344,26 +346,26 @@ cdef class Image:
     # TODO turn all this stuff into a single get/set slice interface?
     def append(self, ImageFrame other):
         """Appends a copy of the given frame to this image."""
-        cdef _image.Image* cloned_frame
+        cdef c_api.Image* cloned_frame
         cdef MagickException exc = MagickException()
 
         # 0, 0 => size; 0x0 means to reuse the same pixel cache
         # 1 => orphan; clear the previous/next pointers
-        cloned_frame = _image.CloneImage(other._frame, 0, 0, 1, exc.ptr)
+        cloned_frame = c_api.CloneImage(other._frame, 0, 0, 1, exc.ptr)
         exc.check()
 
-        _list.AppendImageToList(&self._stack, cloned_frame)
+        c_api.AppendImageToList(&self._stack, cloned_frame)
         self._frames.append(_ImageFrame_factory(cloned_frame))
 
     def extend(self, Image other not None):
         """Appends a copy of each of the given image's frames to this image."""
-        cdef _image.Image* cloned_stack
+        cdef c_api.Image* cloned_stack
         cdef MagickException exc = MagickException()
 
-        cloned_stack = _list.CloneImageList(other._stack, exc.ptr)
+        cloned_stack = c_api.CloneImageList(other._stack, exc.ptr)
         exc.check()
 
-        _list.AppendImageToList(&self._stack, cloned_stack)
+        c_api.AppendImageToList(&self._stack, cloned_stack)
         self._setup_frames(cloned_stack)
 
     def consume(self, Image other not None):
@@ -372,7 +374,7 @@ cdef class Image:
         to be copied, so this is a little more efficient when loading many
         separate images and operating on them as a whole, as with `convert`.
         """
-        _list.AppendImageToList(&self._stack, other._stack)
+        c_api.AppendImageToList(&self._stack, other._stack)
         self._frames.extend(other._frames)
 
         other._stack = NULL
@@ -416,6 +418,13 @@ cdef class Image:
             self._stack.page.width != self._stack.columns or
             self._stack.page.height != self._stack.rows)
 
+    property bit_depth:
+        def __get__(self):
+            return self._stack.depth
+
+        def __set__(self, unsigned long depth):
+            self._stack.depth = depth
+
     # TODO this will have to become a proxy thing for it to support assignment
     # TODO i am not a huge fan of this name, but 'metadata' is too expansive
     # TODO can the same property appear multiple times?  cf PNG text chunks
@@ -429,19 +438,19 @@ cdef class Image:
         # orientation
 
         # This tricks IM into actually reading the EXIF properties...
-        _property.GetImageProperty(self._stack, "exif:*")
+        c_api.GetImageProperty(self._stack, "exif:*")
 
-        _property.ResetImagePropertyIterator(self._stack)
+        c_api.ResetImagePropertyIterator(self._stack)
         while True:
             # XXX this only examines the top image uhoh.  do we care?  what
             # happens if i load a GIF; what does each frame say?  what happens
             # if i have multiple images with different props and save as one
             # image?
-            prop = _property.GetNextImageProperty(self._stack)
+            prop = c_api.GetNextImageProperty(self._stack)
             if prop == NULL:
                 break
 
-            ret[<bytes>prop] = <bytes>_property.GetImageProperty(self._stack, prop)
+            ret[<bytes>prop] = <bytes>c_api.GetImageProperty(self._stack, prop)
 
         return ret
 
@@ -460,31 +469,31 @@ cdef class Image:
         # TODO allow messing with blur?
 
         cdef Image new = self.__class__()
-        cdef _image.Image* p = self._stack
-        cdef _image.Image* new_frame
+        cdef c_api.Image* p = self._stack
+        cdef c_api.Image* new_frame
         cdef MagickException exc = MagickException()
 
-        cdef _image.FilterTypes c_filter = _image.UndefinedFilter
+        cdef c_api.FilterTypes c_filter = c_api.UndefinedFilter
         if filter == 'box':
-            c_filter = _image.BoxFilter
+            c_filter = c_api.BoxFilter
 
         while p:
             try:
-                if c_filter == _image.BoxFilter:
+                if c_filter == c_api.BoxFilter:
                     # Use the faster ScaleImage in this special case
-                    new_frame = _resize.ScaleImage(
+                    new_frame = c_api.ScaleImage(
                         p, size.width, size.height, exc.ptr)
                 else:
-                    new_frame = _resize.ResizeImage(
+                    new_frame = c_api.ResizeImage(
                         p, size.width, size.height,
                         c_filter, 1.0, exc.ptr)
 
                 exc.check()
             except Exception:
-                _image.DestroyImage(new_frame)
+                c_api.DestroyImage(new_frame)
 
-            _list.AppendImageToList(&new._stack, new_frame)
-            p = _list.GetNextImageInList(p)
+            c_api.AppendImageToList(&new._stack, new_frame)
+            p = c_api.GetNextImageInList(p)
 
         new._setup_frames()
         return new
@@ -493,17 +502,17 @@ cdef class Image:
     # accessors for common ops?
     def crop(self, Rectangle rect):
         cdef Image new = self.__class__()
-        cdef _image.Image* p = self._stack
-        cdef _image.Image* new_frame
-        cdef _image.RectangleInfo rectinfo = rect.to_rect_info()
+        cdef c_api.Image* p = self._stack
+        cdef c_api.Image* new_frame
+        cdef c_api.RectangleInfo rectinfo = rect.to_rect_info()
         cdef MagickException exc = MagickException()
 
         while p:
             try:
-                new_frame = _transform.CropImage(p, &rectinfo, exc.ptr)
+                new_frame = c_api.CropImage(p, &rectinfo, exc.ptr)
                 exc.check()
             except Exception:
-                _image.DestroyImage(new_frame)
+                c_api.DestroyImage(new_frame)
 
             # Always repage after a crop; not doing this is unexpected and
             # frankly insane
@@ -513,8 +522,8 @@ cdef class Image:
             new_frame.page.width = 0
             new_frame.page.height = 0
 
-            _list.AppendImageToList(&new._stack, new_frame)
-            p = _list.GetNextImageInList(p)
+            c_api.AppendImageToList(&new._stack, new_frame)
+            p = c_api.GetNextImageInList(p)
 
         new._setup_frames()
         return new
@@ -526,7 +535,7 @@ cdef class Image:
         cdef Image new = self.new(size)
 
         # TODO this returns a bool?
-        _composite.TextureImage(new._stack, self._stack)
+        c_api.TextureImage(new._stack, self._stack)
         check_magick_exception(&self._stack.exception)
 
         return new
@@ -541,8 +550,8 @@ cdef class Image:
         color.c_struct.fuzz = fuzz
         replacement.c_struct.fuzz = fuzz
 
-        _paint.OpaquePaintImage(self._stack, &color.c_struct, &replacement.c_struct,
-            _common.MagickFalse)
+        c_api.OpaquePaintImage(self._stack, &color.c_struct, &replacement.c_struct,
+            c_api.MagickFalse)
 
 
 # TODO this should probably not live in cython
