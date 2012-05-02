@@ -1,0 +1,136 @@
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
+
+  <title>sanpera</title>
+  <meta name="description" content="A better image library for Python">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div class="wrapper">
+    <header>
+      <h1 class="title">sanpera</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">A better image library for Python</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/eevee/sanpera/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/eevee/sanpera/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/eevee/sanpera" class="code">View sanpera on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h1>Introduction</h1>
+
+<p>sanpera is an image-editing library for Python, powered by ImageMagick.</p>
+
+<p>While sanpera <em>uses</em> ImageMagick, it isn't designed as an ImageMagick wrapper; the underlying library is a mere implementation detail.  The goal is to support all of ImageMagick's features with an idiomatic interface.</p>
+
+<p>The examples from the ImageMagick Usage documentation are gradually being converted into unit tests in <code>sanpera/tests/im_usage</code>.  An easy way to learn sanpera, then, is to find an example that does what you want and read the test's equivalent Python code.</p>
+
+<h1>Warning</h1>
+
+<p><strong>This software is not production-ready.</strong>  It may segfault, leak memory, eat your data, cheat on your boyfriend, or burn down your house.</p>
+
+<h1>Concepts</h1>
+
+<h2>Images and frames</h2>
+
+<p>Somewhat unlike both PIL and ImageMagick, sanpera draws a distinction between an <em>image</em> and a <em>frame</em>.  An image is a collection of metadata and zero or more frames; a frame contains the actual pixel data.</p>
+
+<p>Frames can be manipulated to alter an image in-place.  Image operations apply to every frame at once and produce copies.</p>
+
+<h2>Geometry</h2>
+
+<p>Sizes, offsets, and other geometric concepts are represented by small utility classes in <code>sanpera.geometry</code>.  To avoid the minor hassle of constructing a trivial object, methods that expect <code>Size</code> and <code>Vector</code> objects also accept <code>(x, y)</code> tuples.</p>
+
+<h1>Overview</h1>
+
+<h2>Creating images</h2>
+
+<p>A new image with one frame can be created with <code>Image.new()</code>.</p>
+
+<pre><code>from sanpera.image import Image
+img = Image.new((640, 480))
+</code></pre>
+
+<p>Note the double parentheses: that's a tuple (or a <code>Size</code>), not two separate arguments.</p>
+
+<h2>Reading and writing</h2>
+
+<p>Images can be read and written by filename:</p>
+
+<pre><code>img = Image.read('foo.png')
+img.write('bar.png')
+</code></pre>
+
+<p>Or to and from bytestrings:</p>
+
+<pre><code>pngdata = img.to_buffer(format='png')
+img = Image.from_buffer(pngdata)
+</code></pre>
+
+<p>Due to limitations in ImageMagick, sanpera cannot read to or write from arbitrary file-like objects in chunks.</p>
+
+<h2>Working with frames</h2>
+
+<p>An image is an iterable of its frames.</p>
+
+<pre><code>frame = img[0]
+print len(img)
+</code></pre>
+
+<p>A frame may belong to only <strong>one</strong> image at a time.  You can still make copies, move frames from one image to another, or extract frames into a new image.</p>
+
+<h2>Resizing</h2>
+
+<p>Resizing creates a new image.</p>
+
+<pre><code>smaller = img.resized((100, 100))
+</code></pre>
+
+<p><code>Size</code> methods exist for adjusting sizes in various ways, including emulating any of the special symbols accepted by <code>convert -resize</code>.</p>
+
+<pre><code>thumbnail = img.resized(img.size.fit_inside((100, 100)))
+</code></pre>
+
+<h2>Cropping</h2>
+
+<p>TODO</p>
+        </article>
+      </div>
+    </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/eevee" class="avatar"><img src="https://secure.gravatar.com/avatar/2c87a0857f4e3910154bc17a8f807b60?s=30&amp;d=https://a248.e.akamai.net/assets.github.com%2Fimages%2Fgravatars%2Fgravatar-140.png" width="48" height="48"/></a> <a href="https://github.com/eevee">eevee</a> maintains <a href="https://github.com/eevee/sanpera">sanpera</a></p>
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="http://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/eevee/sanpera/tarball/master" class="tar">tar</a><a href="https://github.com/eevee/sanpera/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
+
+  
+</body>
+</html>
