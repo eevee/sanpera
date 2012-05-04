@@ -16,6 +16,12 @@ cdef extern from "Python.h":
 # Let ImageMagick do its setup stuff
 c_api.MagickCoreGenesis(Py_GetProgramFullPath(), c_api.MagickFalse)
 
+# Disable the default warning/error behavior, which is to spew garbage to
+# stderr (how considerate)
+c_api.SetWarningHandler(NULL)
+c_api.SetErrorHandler(NULL)
+c_api.SetFatalErrorHandler(NULL)
+
 
 ### Teardown
 
