@@ -12,8 +12,10 @@ def test_identify_size():
     assert img.original_format == 'GIF', "image is a gif"  # XXX this should be a magick format object
     assert img.size == Size(32, 32), "dimensions are 32x32"
 
-    assert img.canvas.offset == Vector(0, 0), "virtual canvas has no offset"
-    assert not img.canvas.offset, "virtual canvas offset registers as false"
-    assert img.canvas.size == Size(32, 32), "virtual canvas is 32x32"
-    assert img.canvas.size == img.size, "virtual canvas size is image size"
+    frame = img[0]
+    assert frame.canvas.position == Vector(0, 0), "virtual canvas has no offset"
+    assert not frame.canvas.position, "virtual canvas offset registers as false"
+    assert frame.canvas.size == Size(32, 32), "virtual canvas is 32x32"
+    assert frame.canvas.size == img.size, "virtual canvas size is image size"
+    assert not frame.has_canvas, "frame isn't using a virtual canvas"
     assert not img.has_canvas, "image isn't using a virtual canvas"

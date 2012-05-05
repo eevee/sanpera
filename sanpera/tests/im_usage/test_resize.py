@@ -15,7 +15,7 @@ from sanpera.tests.im_usage.common import ImageOperationRegistry
 resize_tests = ImageOperationRegistry()
 
 
-### "Resizing Images"
+### Resizing Images
 
 @resize_tests.register('convert dragon.gif -resize 64x64 OUT')
 def resize_dragon_basic():
@@ -132,9 +132,12 @@ def resize_terminal_read():
 # convert line_orig.gif  -sample 50x20  line_sample.gif
 @resize_tests.register('convert -size 150x60 xc: -draw "line 0,59 149,0" -sample 50x20 OUT')
 def resize_line_sample():
-    img = Image.new
+    raise NotImplementedError
 
-@resize_tests.register('convert -size 8x8 pattern:CrossHatch30 -scale 1000% OUT')
+# XXX this +repage is not in the original line, but it works around what i
+# consider to be a legit bug in imagemagick when using -size
+#@resize_tests.register('convert -size 8x8 pattern:CrossHatch30 -scale 1000% OUT')
+@resize_tests.register('convert -size 8x8 pattern:CrossHatch30 +repage -scale 1000% OUT')
 def resize_scale_crosshatch():
     img = patterns.crosshatch30.tile((8, 8))
     return img.resize(img.size * 10, filter='box')

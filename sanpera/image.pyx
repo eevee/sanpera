@@ -2,6 +2,7 @@
 """
 from __future__ import division
 
+from cpython cimport bool
 cimport cpython.exc
 from cython.operator cimport preincrement as inc
 cimport libc.string as libc_string
@@ -24,37 +25,6 @@ from sanpera.exception import EmptyImageError, MissingFormatError
 # TODO threadsafety?
 # TODO check boolean return values more often
 # TODO really, really want to be able to dump out an image or info struct.  really.
-
-
-### Little helpers
-
-cdef class RectangleProxy:
-    cdef c_api.RectangleInfo* ptr
-    cdef owner
-
-    @property
-    def width(self):
-        return self.ptr.width
-
-    @property
-    def height(self):
-        return self.ptr.height
-
-    @property
-    def x(self):
-        return self.ptr.x
-
-    @property
-    def y(self):
-        return self.ptr.y
-
-    @property
-    def size(self):
-        return Size(self.ptr.width, self.ptr.height)
-
-    @property
-    def offset(self):
-        return Vector(self.ptr.x, self.ptr.y)
 
 
 ### Frame
@@ -92,9 +62,36 @@ cdef class ImageFrame:
     def __init__(self):
         raise TypeError("RawFrames cannot be instantiated directly")
 
-    @property
-    def size(self):
-        return Size(self._frame.columns, self._frame.rows)
+    property canvas:
+        """Dimensions and offset of the drawable area of this frame, relative
+        to the image's full size.
+        """
+        def __get__(self):
+            return Rectangle(
+                self._frame.page.x,
+                self._frame.page.y,
+                self._frame.page.x + self._frame.columns,
+                self._frame.page.y + self._frame.rows,
+            )
+
+    property size:
+        """Size of the frame, as a `Size`.  Shortcut for `frame.canvas.size`.
+        """
+        def __get__(self):
+            return Size(self._frame.columns, self._frame.rows)
+
+    property has_canvas:
+        """Returns `True` if this frame has a non-trivial virtual canvas; i.e.,
+        returns `False` if the virtual canvas is the same size as the image and
+        anchored at the origin.
+        """
+        def __get__(self):
+            return (
+                self._frame.page.x != 0 or
+                self._frame.page.y != 0 or
+                self._frame.page.width != self._frame.columns or
+                self._frame.page.height != self._frame.rows
+            )
 
 
 cdef ImageFrame _ImageFrame_factory(c_api.Image* frame):
@@ -150,7 +147,7 @@ cdef class Image:
         finally:
             c_api.DestroyImageInfo(image_info)
 
-        self._setup_frames()
+        self._post_init()
         return self
 
     @classmethod
@@ -181,7 +178,7 @@ cdef class Image:
             if ret != 0:
                 cpython.exc.PyErr_SetFromErrnoWithFilename(IOError, filename)
 
-        self._setup_frames()
+        self._post_init()
         return self
 
     @classmethod
@@ -202,7 +199,7 @@ cdef class Image:
         finally:
             c_api.DestroyImageInfo(image_info)
 
-        self._setup_frames()
+        self._post_init()
         return self
 
     @classmethod
@@ -230,7 +227,7 @@ cdef class Image:
         finally:
             c_api.DestroyImageInfo(image_info)
 
-        self._setup_frames()
+        self._post_init()
         return self
 
 
@@ -306,6 +303,15 @@ cdef class Image:
 
     ### cdef utilities
 
+    cdef _post_init(self):
+        """Do some setup that only needs doing after a stack of images has been
+        loaded.
+
+        Please don't forget to call me.  :)
+        """
+        self._setup_frames()
+        self._fix_page()
+
     cdef _setup_frames(self, c_api.Image* start = NULL):
         # Shared by constructors to read the frame list out of the new image
         assert not self._frames
@@ -320,6 +326,21 @@ cdef class Image:
         while p:
             self._frames.append(_ImageFrame_factory(p))
             p = c_api.GetNextImageInList(p)
+
+    cdef _fix_page(self):
+        """Sometimes, the page is 0x0.  This is totally bogus.  Fix it."""
+        cdef ImageFrame frame
+        cdef c_api.Image* c_frame
+
+        for frame in self._frames:
+            c_frame = frame._frame
+            if c_frame.page.width == 0 or c_frame.page.height == 0:
+                c_frame.page.width = c_frame.columns
+                c_frame.page.height = c_frame.rows
+
+        # TODO other page problems are possible, especially when adopting new frames
+        # TODO possibly should keep the page size the same across all frames; makes no sense otherwise
+        # TODO should this live on ImageFrame perhaps?
 
 
     ### Sequence operations
@@ -390,9 +411,8 @@ cdef class Image:
     def original_format(self):
         return self._stack.magick
 
-    @property
-    def size(self):
-        """The image dimensions, as a `Size`.
+    property size:
+        """The image dimensions, as a `Size`.  Empty images have zero size.
 
         Note that multi-frame images don't have a notion of intrinsic size for
         the entire image, though particular formats may enforce that every
@@ -400,23 +420,21 @@ cdef class Image:
         the size of the first frame, which is in line with most image-handling
         software.
         """
-        return Size(self._stack.columns, self._stack.rows)
 
-    @property
-    def canvas(self):
-        proxy = RectangleProxy()
-        proxy.ptr = &self._stack.page
-        proxy.owner = self
+        def __get__(self):
+            # Note that this doesn't use the rows+columns; the size of the
+            # ENTIRE IMAGE is the size of the virtual canvas.
+            # TODO the canvas might be different between different frames!  see
+            # if this happens on load, try to preserve it with operations
+            if self._stack == NULL:
+                return Size(0, 0)
 
-        return proxy
+            return Size(self._stack.page.width, self._stack.page.height)
 
-    @property
-    def has_canvas(self):
-        return (
-            self._stack.page.x != 0 or
-            self._stack.page.y != 0 or
-            self._stack.page.width != self._stack.columns or
-            self._stack.page.height != self._stack.rows)
+    property has_canvas:
+        """Returns `True` iff any frame has a canvas."""
+        def __get__(self):
+            return any(f.has_canvas for f in self)
 
     property bit_depth:
         def __get__(self):
@@ -491,16 +509,15 @@ cdef class Image:
                 exc.check()
             except Exception:
                 c_api.DestroyImage(new_frame)
+                raise
 
             c_api.AppendImageToList(&new._stack, new_frame)
             p = c_api.GetNextImageInList(p)
 
-        new._setup_frames()
+        new._post_init()
         return new
 
-    # TODO i don't really like this argspec.  need a Rectangle class and
-    # accessors for common ops?
-    def crop(self, Rectangle rect):
+    def crop(self, Rectangle rect, *, bool preserve_canvas not None=False):
         cdef Image new = self.__class__()
         cdef c_api.Image* p = self._stack
         cdef c_api.Image* new_frame
@@ -513,19 +530,21 @@ cdef class Image:
                 exc.check()
             except Exception:
                 c_api.DestroyImage(new_frame)
+                raise
 
-            # Always repage after a crop; not doing this is unexpected and
+            # Repage by default after a crop; not doing this is unexpected and
             # frankly insane
             # TODO how necessary is this?  should it be done for frames?
-            new_frame.page.x = 0
-            new_frame.page.y = 0
-            new_frame.page.width = 0
-            new_frame.page.height = 0
+            if not preserve_canvas:
+                new_frame.page.x = 0
+                new_frame.page.y = 0
+                new_frame.page.width = 0
+                new_frame.page.height = 0
 
             c_api.AppendImageToList(&new._stack, new_frame)
             p = c_api.GetNextImageInList(p)
 
-        new._setup_frames()
+        new._post_init()
         return new
 
     # TODO i should probably live on Frame
