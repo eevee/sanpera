@@ -12,89 +12,62 @@ sanpera's own implementation of `convert`.
 Look at some of the actual modules to see how this works.
 """
 
+import os
 import os.path
 import shlex
+import shutil
 import subprocess
 import tempfile
-
-import pytest
 
 from sanpera.image import Image
 from sanpera.tests import util
 
 
-class ImageOperationRegistry(object):
-    """Registers a list of `convert` commands and corresponding Python
-    functions.
-    """
-
+class UsageContext(object):
+    """Helper object."""
     def __init__(self):
-        self.operations = []
+        # Create a temporary directory
+        self.tempdir = tempfile.mkdtemp()
 
-    def register(self, command):
-        """Use me like this:
+        # Make all the builtin test images available
+        root = util.data_root()
+        # Windows needs a copy; no links
+        link = os.symlink or shutil.copy
+        for fn in os.listdir(root):
+            link(
+                os.path.join(root, fn),
+                os.path.join(self.tempdir, fn),
+            )
 
-            @registry.register('convert foo.png bar.png')
-            def python_code():
-                return Image(...)
-        """
-        def decorator(func):
-            self.operations.append((
-                command,
-                func,
-            ))
+    def destroy(self):
+        # TODO make a pytest option for skipping the destroy
+        shutil.rmtree(self.tempdir)
 
-            return func
 
-        return decorator
+    def compare(self, got, expected_name):
+        expected = Image.read(os.path.join(self.tempdir, expected_name))
+        got.write(os.path.join(self.tempdir, 'GOT-' + expected_name), format='miff')
 
-    def python_test_function(self):
-        """Generate a test function that will run every test in the registry
-        against the Python code.  You have to do this for py.test to see your
-        tests.
-        """
-        decorator = pytest.mark.parametrize(
-            ('command', 'function'),
-            self.operations)
-        return decorator(self._make_generic_python_test_function())
+        util.assert_identical(got, expected)
 
-    # TODO cache the created file, instead of creating it for both the python and command tests?
-    # TODO this sorely needs a better way to specify the location of the temporary output file
-    # TODO fix the finding of input files both in Python and below, too.
-    # TODO failures result in a stack of useless frames
-    # TODO skips don't work
-    def _make_generic_python_test_function(self):
-        def f(command, function):
-            """Template for `python_test_function`."""
-            tempfiles = []
-
-            # Run the command to get the expected output
-            try:
+    def do_convert(self, func):
+        """Run the given function's `convert` commands."""
+        try:
+            convert_commands = func.convert_commands
+        except AttributeError:
+            pass
+        else:
+            for command in convert_commands:
                 words = shlex.split(command)
-                for i, word in enumerate(words):
-                    # Special tokens!
-                    if word == 'OUT':
-                        # Output file
-                        f = tempfile.NamedTemporaryFile()
-                        tempfiles.append(f)
-                        words[i] = 'miff:' + f.name
+                subprocess.Popen(words, cwd=self.tempdir).wait()
 
-                assert tempfiles, "need at least one OUT token"
+def convert(*commands):
+    """Decorator to associate some number of `convert` calls with a test.
 
-                subprocess.Popen(
-                    words,
-                    cwd=util.data_root(),
-                ).wait()
-                expected = Image.from_buffer(tempfiles[0].read())
-
-            finally:
-                for f in tempfiles:
-                    f.close()
-
-            # Run the Python code
-            actual = function()
-
-            # Compare
-            util.assert_identical(expected, actual)
-
+    PLEASE use .miff for filenames!  GIFs will naturally lose color
+    information, which sorta defeats the point of pixel-perfect unit tests.
+    """
+    def decorator(f):
+        f.convert_commands = commands
         return f
+    return decorator

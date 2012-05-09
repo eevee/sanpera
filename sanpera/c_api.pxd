@@ -292,15 +292,24 @@ cdef extern from "magick/color.h":
 cdef extern from "magick/image.h":
     # TODO a bunch of #defines at the top, dealing with bit depth and
     # whatever
+    # TODO this was originally created for graphicsmagick and doesn't quite
+    # match imagemagick
 
     ctypedef unsigned int Quantum
     int QuantumDepth
 
     ### Enums.  Lots...  of...  enums.
-    ctypedef enum AlphaType:
-        UnspecifiedAlpha
-        AssociatedAlpha
-        UnassociatedAlpha
+    ctypedef enum AlphaChannelType:
+        UndefinedAlphaChannel
+        ActivateAlphaChannel
+        BackgroundAlphaChannel
+        CopyAlphaChannel
+        DeactivateAlphaChannel
+        ExtractAlphaChannel
+        OpaqueAlphaChannel
+        SetAlphaChannel
+        ShapeAlphaChannel
+        TransparentAlphaChannel
 
     ctypedef enum ChannelType:
         # Note that this isn't the same order as the header file

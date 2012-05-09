@@ -63,3 +63,4 @@ def test_rect_zero():
 
 def test_rect_simple():
     rect = geom.Rectangle(0, 0, 3, 4)
+    assert rect.size == geom.Size(3, 4)

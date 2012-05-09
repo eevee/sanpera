@@ -284,6 +284,11 @@ cdef class Image:
             # Force writing to a single file
             image_info.adjoin = c_api.MagickTrue
 
+            # Stupid hack to fix a bug in the rgb codec
+            if format == 'rgba' and not self._stack.matte:
+                c_api.SetImageAlphaChannel(self._stack, c_api.OpaqueAlphaChannel)
+                check_magick_exception(&self._stack.exception)
+
             if format:
                 # If the caller provided an explicit format, pass it along
                 libc_string.strncpy(image_info.magick, <char*>format, c_api.MaxTextExtent)
@@ -340,6 +345,7 @@ cdef class Image:
 
         # TODO other page problems are possible, especially when adopting new frames
         # TODO possibly should keep the page size the same across all frames; makes no sense otherwise
+        # TODO frames may also have different colorspace, matte, palette...  this is problematic
         # TODO should this live on ImageFrame perhaps?
 
 

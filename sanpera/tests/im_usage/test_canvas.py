@@ -4,41 +4,33 @@ examples.
 See: http://www.imagemagick.org/Usage/canvas/
 """
 
-import os.path
-
 from sanpera.color import Color
 from sanpera.geometry import Size
 from sanpera.image import Image, builtins
-
-from sanpera.tests.util import get_image
-from sanpera.tests.im_usage.common import ImageOperationRegistry
-
-canvas_tests = ImageOperationRegistry()
+from sanpera.tests.im_usage.common import convert
 
 
-@canvas_tests.register('convert -size 100x100 canvas:khaki -strip OUT')
-def canvas_khaki():
-    return Image.new((100, 100), fill=Color.parse('khaki'))
+### Solid Color Canvases
 
-@canvas_tests.register('convert -size 100x100 xc:wheat -strip OUT')
-def canvas_wheat():
-    return Image.new((100, 100), fill=Color.parse('wheat'))
+@convert('convert -size 100x100 canvas:khaki canvas_khaki.miff')
+def test_khaki(ctx):
+    img = Image.new((100, 100), fill=Color.parse('khaki'))
+    ctx.compare(img, 'canvas_khaki.miff')
 
-# TODO this can't work: it relies on using the output of a previous test.
-# please make this possible and restore the original command
-#@canvas_tests.register('convert canvas_khaki.gif -fill tomato -opaque khaki canvas_opaque.gif')
-@canvas_tests.register('convert -size 100x100 canvas:khaki -fill tomato -opaque khaki OUT')
-def canvas_khaki_to_tomato():
+@convert('convert -size 100x100 xc:wheat canvas_wheat.miff')
+def test_wheat(ctx):
+    img = Image.new((100, 100), fill=Color.parse('wheat'))
+    ctx.compare(img, 'canvas_wheat.miff')
+
+@convert('convert canvas_khaki.miff -fill tomato -opaque khaki canvas_opaque.miff')
+def test_khaki_to_tomato(ctx):
     img = Image.new((100, 100), fill=Color.parse('khaki'))
     img.replace_color(Color.parse('khaki'), Color.parse('tomato'))
-    return img
+    ctx.compare(img, 'canvas_opaque.miff')
 
-@canvas_tests.register('convert rose: -crop 1x1+40+30 +repage -scale 100x100! OUT')
-def canvas_rose_pixel():
+@convert('convert rose: -crop 1x1+40+30 +repage -scale 100x100! canvas_pick.miff')
+def test_rose_pixel(ctx):
     img = builtins.rose
     img = img.crop(Size(1, 1).at((40, 30)))
     img = img.resize((100, 100), filter='box')
-    return img
-
-# I am the actual test command  :)
-test_canvas_command = canvas_tests.python_test_function()
+    ctx.compare(img, 'canvas_pick.miff')

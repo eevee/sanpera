@@ -1,9 +1,6 @@
 """Test utilities only; no actual tests should appear in here!"""
 
-import contextlib
 import os.path
-import shutil
-import tempfile
 
 from sanpera.image import Image
 
@@ -26,18 +23,6 @@ def get_image(path):
     return Image.read(find_image(path))
 
 
-### Misc
-
-@contextlib.contextmanager
-def tmpdir():
-    dir = tempfile.mkdtemp()
-
-    try:
-        yield dir
-    finally:
-        shutil.rmtree(dir)
-
-
 ### Particular assertions
 
 def assert_identical(img1, img2):
@@ -51,6 +36,6 @@ def assert_identical(img1, img2):
     # diff in some useful manner!
     img1.bit_depth = 8
     img2.bit_depth = 8
-    buf1 = img1.to_buffer(format='rgb')
-    buf2 = img2.to_buffer(format='rgb')
+    buf1 = img1.to_buffer(format='rgba')
+    buf2 = img2.to_buffer(format='rgba')
     assert buf1 == buf2
