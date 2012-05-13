@@ -25,12 +25,12 @@ def test_wheat(ctx):
 @convert('convert canvas_khaki.miff -fill tomato -opaque khaki canvas_opaque.miff')
 def test_khaki_to_tomato(ctx):
     img = Image.new((100, 100), fill=Color.parse('khaki'))
-    img.replace_color(Color.parse('khaki'), Color.parse('tomato'))
+    img[0].replace_color(Color.parse('khaki'), Color.parse('tomato'))
     ctx.compare(img, 'canvas_opaque.miff')
 
 @convert('convert rose: -crop 1x1+40+30 +repage -scale 100x100! canvas_pick.miff')
 def test_rose_pixel(ctx):
     img = builtins.rose
-    img = img.crop(Size(1, 1).at((40, 30)))
-    img = img.resize((100, 100), filter='box')
+    img = img.cropped(Size(1, 1).at((40, 30)))
+    img = img.resized((100, 100), filter='box')
     ctx.compare(img, 'canvas_pick.miff')

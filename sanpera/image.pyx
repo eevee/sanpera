@@ -93,6 +93,31 @@ cdef class ImageFrame:
                 self._frame.page.height != self._frame.rows
             )
 
+    ### Whole-frame manipulation
+
+    # TODO perhaps a mutating version of this would be useful for painting
+    def tiled(self, size):
+        size = Size.coerce(size)
+
+        cdef Image new = Image.new(size)
+
+        # TODO this returns a bool?
+        c_api.TextureImage(new._stack, self._frame)
+        check_magick_exception(&self._frame.exception)
+
+        return new
+
+    ### Color
+
+    def replace_color(self, Color color, Color replacement,
+            *, float fuzz = 0.0):
+
+        color.c_struct.fuzz = fuzz
+        replacement.c_struct.fuzz = fuzz
+
+        c_api.OpaquePaintImage(self._frame, &color.c_struct, &replacement.c_struct,
+            c_api.MagickFalse)
+
 
 cdef ImageFrame _ImageFrame_factory(c_api.Image* frame):
     cdef ImageFrame self = ImageFrame.__new__(ImageFrame)
@@ -486,7 +511,7 @@ cdef class Image:
     # - cropping likewise needs to affect the stack as a whole
     # ...or does IM do this already?  what's the diff between the resize functions?
 
-    def resize(self, size, filter=None):
+    def resized(self, size, filter=None):
         size = Size.coerce(size)
 
         # TODO allow picking a filter
@@ -523,7 +548,7 @@ cdef class Image:
         new._post_init()
         return new
 
-    def crop(self, Rectangle rect, *, bool preserve_canvas not None=False):
+    def cropped(self, Rectangle rect, *, bool preserve_canvas not None=False):
         cdef Image new = self.__class__()
         cdef c_api.Image* p = self._stack
         cdef c_api.Image* new_frame
@@ -552,31 +577,6 @@ cdef class Image:
 
         new._post_init()
         return new
-
-    # TODO i should probably live on Frame
-    def tile(self, size):
-        size = Size.coerce(size)
-
-        cdef Image new = self.new(size)
-
-        # TODO this returns a bool?
-        c_api.TextureImage(new._stack, self._stack)
-        check_magick_exception(&self._stack.exception)
-
-        return new
-
-
-    ### The good stuff: color
-    # TODO these are really methods on frames, not images
-
-    def replace_color(self, Color color, Color replacement,
-            *, float fuzz = 0.0):
-
-        color.c_struct.fuzz = fuzz
-        replacement.c_struct.fuzz = fuzz
-
-        c_api.OpaquePaintImage(self._stack, &color.c_struct, &replacement.c_struct,
-            c_api.MagickFalse)
 
 
 # TODO this should probably not live in cython
