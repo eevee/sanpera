@@ -151,10 +151,7 @@ def test_read_terminal(ctx):
 def test_line_sample(ctx):
     raise NotImplementedError
 
-# XXX this +repage is not in the original line, but it works around what i
-# consider to be a legit bug in imagemagick when using -size
-#@convert('convert -size 8x8 pattern:CrossHatch30 -scale 1000% OUT')
-@convert('convert -size 8x8 pattern:CrossHatch30 +repage -scale 1000% scale_crosshatch.miff')
+@convert('convert -size 8x8 pattern:CrossHatch30 -scale 1000% scale_crosshatch.miff')
 def test_scale_crosshatch(ctx):
     img = patterns.crosshatch30.tile((8, 8))
     img = img.resize(img.size * 10, filter='box')
