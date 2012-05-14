@@ -1,11 +1,12 @@
-import sys
-import subprocess
+import os.path
 import shlex
+import subprocess
+import sys
 
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
 
+# Find out where ImageMagick is and how it was built
 try:
     proc = subprocess.Popen(['pkg-config', 'ImageMagick', '--cflags'],
             stdout=subprocess.PIPE)
@@ -23,10 +24,37 @@ else:
         extra_link_args=shlex.split(link_args),
     )
 
+# Add Cythonizing support for devs
+cmdclass = {}
+try:
+    from Cython.Distutils import build_ext
+except ImportError:
+    pass
+else:
+    class build_cython(build_ext):
+        def initialize_options(self):
+            # Always build in-place, since this is dev-only anyway
+            build_ext.initialize_options(self)
+            self.inplace = True
+
+        def build_extensions(self):
+            # Rewrite .c back to .pyx
+            for ext in self.extensions:
+                for i, filename in enumerate(ext.sources):
+                    base, extension = os.path.splitext(filename)
+                    if extension == '.c':
+                        ext.sources[i] = base + '.pyx'
+
+            # Cythonize as normal
+            return build_ext.build_extensions(self)
+
+    cmdclass['build_cython'] = build_cython
+
+
 def ext_module(module):
     return Extension(
         "sanpera.%s" % (module,),
-        ["sanpera/%s.pyx" % (module,)],
+        ["sanpera/%s.c" % (module,)],
         **extension_kwargs)
 
 setup(
@@ -48,7 +76,7 @@ setup(
     ],
 
     packages=['sanpera'],
-    cmdclass={'build_ext': build_ext},
+    cmdclass=cmdclass,
     ext_modules=[
         ext_module('color'),
         ext_module('core'),
