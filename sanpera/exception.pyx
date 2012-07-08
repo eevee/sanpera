@@ -2,7 +2,10 @@
 
 import warnings
 
+from cpython cimport bool
+
 from sanpera cimport c_api
+
 
 class SanperaError(Exception):
     message = None
@@ -27,6 +30,9 @@ class EmptyImageError(SanperaError):
 ### Translations of ImageMagick errors
 class GenericMagickWarning(SanperaWarning): pass
 class GenericMagickError(SanperaError): pass
+
+class MysteryError(SanperaError):
+    message = "ImageMagick reported an error but didn't say what it was!"
 
 
 class OptionWarning(SanperaWarning): pass
@@ -54,19 +60,26 @@ cdef class MagickException:
     def __dealloc__(self):
         c_api.DestroyExceptionInfo(self.ptr)
 
-    def check(self):
-        check_magick_exception(self.ptr)
+    def check(self, bool force not None = False):
+        check_magick_exception(self.ptr, force)
 
 
 magick_exception_map = {
     c_api.OptionWarning: OptionWarning
 }
 
-cdef check_magick_exception(c_api.ExceptionInfo* exc):
+cdef check_magick_exception(c_api.ExceptionInfo* exc, int force = 0):
     """If the given `ExceptionInfo` pointer contains an exception, convert it
     to a Python one and throw it.
+
+    Set `force` to True to throw a generic error even if the pointer doesn't
+    seem to indicate an exception.  This is useful in cases where a function
+    uses both exceptions and `NULL` returns, which are sadly all too common in
+    ImageMagick.
     """
     if exc == NULL or exc.severity == c_api.UndefinedException:
+        if force:
+            raise MysteryError
         return
 
     # TODO have more exception classes
