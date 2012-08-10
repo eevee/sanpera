@@ -93,7 +93,7 @@ cdef class Vector:
 
     def __iter__(self):
         """Unpacks into `(x, y)`."""
-        return (self._x, self._y)
+        return iter((self._x, self._y))
 
     def __nonzero__(self):
         """Every `Vector` is truthy, except the zero vector."""
