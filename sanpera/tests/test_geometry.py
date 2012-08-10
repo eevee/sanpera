@@ -10,6 +10,7 @@ def test_vector_origin():
     assert not vec
     assert vec.x == 0
     assert vec.y == 0
+    assert tuple(vec) == (0, 0)
 
 def test_vector_simple():
     vec = geom.Vector(3, 4)
@@ -32,6 +33,7 @@ def test_size_zero():
     assert size.height == 0
     assert size.x == 0
     assert size.y == 0
+    assert tuple(size) == (0, 0)
 
 
 def test_size_fit_area():
