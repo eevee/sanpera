@@ -30,6 +30,9 @@ cdef extern from "magick/magick-type.h":
     ctypedef double Quantum
     double QuantumRange
 
+    # Same story here; may be a long double
+    ctypedef double MagickRealType
+
     ctypedef long MagickOffsetType
     ctypedef unsigned long MagickSizeType
 
@@ -244,6 +247,60 @@ cdef extern from "magick/colorspace.h":
 
 ### PIXEL
 
+cdef extern from "magick/quantum.h":
+    ctypedef enum EndianType:
+        UndefinedEndian
+        LSBEndian
+        MSBEndian
+
+    ctypedef enum QuantumAlphaType:
+        UndefinedQuantumAlpha
+        AssociatedQuantumAlpha
+        DisassociatedQuantumAlpha
+
+    ctypedef enum QuantumFormatType:
+        UndefinedQuantumFormat
+        FloatingPointQuantumFormat
+        SignedQuantumFormat
+        UnsignedQuantumFormat
+
+    ctypedef enum QuantumType:
+        UndefinedQuantum
+        AlphaQuantum
+        BlackQuantum
+        BlueQuantum
+        CMYKAQuantum
+        CMYKQuantum
+        CyanQuantum
+        GrayAlphaQuantum
+        GrayQuantum
+        GreenQuantum
+        IndexAlphaQuantum
+        IndexQuantum
+        MagentaQuantum
+        OpacityQuantum
+        RedQuantum
+        RGBAQuantum
+        BGRAQuantum
+        RGBOQuantum
+        RGBQuantum
+        YellowQuantum
+        RGBPadQuantum
+        CbYCrYQuantum
+        CbYCrQuantum
+        CbYCrAQuantum
+        CMYKOQuantum
+        BGRQuantum
+        BGROQuantum
+
+    ctypedef struct QuantumInfo:
+        pass
+
+    Quantum ClampToQuantum(MagickRealType)
+    unsigned char ScaleQuantumToChar(Quantum)
+
+    # NOTE: there's more, but unclear if any is useful
+
 cdef extern from "magick/pixel.h":
     ctypedef struct MagickPixelPacket:
         #ClassType storage_class
@@ -256,18 +313,17 @@ cdef extern from "magick/pixel.h":
 
         size_t depth
 
-        #MagickRealType red
-        #MagickRealType green
-        #MagickRealType blue
-        #MagickRealType opacity
-        #MagickRealType index
+        MagickRealType red
+        MagickRealType green
+        MagickRealType blue
+        MagickRealType opacity
+        MagickRealType index
 
     ctypedef struct PixelPacket:
-        pass
-        #Quantum red
-        #Quantum green
-        #Quantum blue
-        #Quantum opacity
+        Quantum red
+        Quantum green
+        Quantum blue
+        Quantum opacity
 
     double GetPixelRed(PixelPacket*)
     double SetPixelRed(PixelPacket*, double)
@@ -284,6 +340,7 @@ cdef extern from "magick/color.h":
         XPMCompliance
         AllCompliance
 
+    MagickBooleanType QueryColorDatabase(char*, PixelPacket*, ExceptionInfo*)
     MagickBooleanType QueryMagickColor(char*, MagickPixelPacket*, ExceptionInfo*)
 
 
@@ -971,3 +1028,59 @@ cdef extern from "magick/cache.h":
 
     void CacheComponentTerminus()
     #void* GetPixelCachePixels(Image*, MagickSizeType*, ExceptionInfo*)
+
+cdef extern from "magick/cache-view.h":
+    ctypedef enum VirtualPixelMethod:
+        UndefinedVirtualPixelMethod
+        BackgroundVirtualPixelMethod
+        ConstantVirtualPixelMethod
+        DitherVirtualPixelMethod
+        EdgeVirtualPixelMethod
+        MirrorVirtualPixelMethod
+        RandomVirtualPixelMethod
+        TileVirtualPixelMethod
+        TransparentVirtualPixelMethod
+        MaskVirtualPixelMethod
+        BlackVirtualPixelMethod
+        GrayVirtualPixelMethod
+        WhiteVirtualPixelMethod
+        HorizontalTileVirtualPixelMethod
+        VerticalTileVirtualPixelMethod
+        HorizontalTileEdgeVirtualPixelMethod
+        VerticalTileEdgeVirtualPixelMethod
+        CheckerTileVirtualPixelMethod
+
+    ctypedef struct CacheView:
+        pass
+
+    CacheView* AcquireCacheView(Image*)
+    CacheView* CloneCacheView(CacheView*)
+    CacheView* DestroyCacheView(CacheView*)
+
+    ClassType GetCacheViewStorageClass(CacheView*)
+
+    ColorspaceType GetCacheViewColorspace(CacheView*)
+
+    IndexPacket* GetCacheViewVirtualIndexQueue(CacheView*)
+
+    PixelPacket* GetCacheViewVirtualPixels(CacheView*, ssize_t, ssize_t, size_t, size_t,ExceptionInfo*)
+    PixelPacket* GetCacheViewVirtualPixelQueue(CacheView*)
+
+    ExceptionInfo* GetCacheViewException(CacheView*)
+
+    IndexPacket* GetCacheViewAuthenticIndexQueue(CacheView*)
+
+    MagickBooleanType GetOneCacheViewVirtualPixel(CacheView*, ssize_t, ssize_t, PixelPacket*,ExceptionInfo*)
+    MagickBooleanType GetOneCacheViewVirtualMethodPixel(CacheView*, VirtualPixelMethod, ssize_t, ssize_t, PixelPacket*, ExceptionInfo*)
+    MagickBooleanType GetOneCacheViewAuthenticPixel(CacheView*, ssize_t, ssize_t, PixelPacket*, ExceptionInfo*)
+    MagickBooleanType SetCacheViewStorageClass(CacheView*, ClassType)
+    MagickBooleanType SetCacheViewVirtualPixelMethod(CacheView*, VirtualPixelMethod)
+    MagickBooleanType SyncCacheViewAuthenticPixels(CacheView*, ExceptionInfo*)
+
+    MagickSizeType GetCacheViewExtent(CacheView*)
+
+    size_t GetCacheViewChannels(CacheView*)
+
+    PixelPacket* GetCacheViewAuthenticPixelQueue(CacheView*)
+    PixelPacket* GetCacheViewAuthenticPixels(CacheView*, ssize_t, ssize_t, size_t, size_t,ExceptionInfo*)
+    PixelPacket* QueueCacheViewAuthenticPixels(CacheView*, ssize_t, ssize_t, size_t, size_t, ExceptionInfo*)
