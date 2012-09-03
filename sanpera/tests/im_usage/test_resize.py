@@ -166,3 +166,59 @@ def test_scale_gray_norm(ctx):
 def test_scale_gray_mag(ctx):
     img = patterns.gray50.resized((36, 36), filter='box')
     ctx.compare(img, 'scale_gray_mag.miff')
+
+@convert('convert rose: -scale 25% -scale 70x46! rose_pixelated.miff')
+def test_rose_pixelated(ctx):
+    raise NotImplementedError
+
+@convert('convert -size 50x50 xc: -draw "line 0,49 49,0" line_orig2.miff')
+def test_line_orig2(ctx):
+    raise NotImplementedError
+
+@convert('convert line_orig2.miff -resize 80x80 line_resize.miff')
+def test_line_resize(ctx):
+    raise NotImplementedError
+
+@convert('convert line_orig2.miff -adaptive-resize 80x80 line_adaptive.miff')
+def test_line_adaptive(ctx):
+    raise NotImplementedError
+
+# Liquid Rescale
+
+@convert('convert logo: -resize 50% -trim +repage logo_trimmed.miff')
+def test_logo_trimmed(ctx):
+    raise NotImplementedError
+
+@convert('convert logo_trimmed.miff -liquid-rescale 75x100%!  logo_lqr.miff')
+def test_logo_lqr(ctx):
+    raise NotImplementedError
+
+@convert('convert logo_trimmed.miff -sample 75x100%! logo_sample.miff')
+def test_logo_sample(ctx):
+    raise NotImplementedError
+
+@convert('convert logo_trimmed.miff -liquid-rescale 130x100%! logo_lqr_expand.miff')
+def test_logo_lqr_expand(ctx):
+    raise NotImplementedError
+
+# Distort Resize
+
+@convert('convert rose: -matte -virtual-pixel transparent +distort SRT ".9,0" +repage rose_distort_scale.miff')
+def test_rose_distort_scale(ctx):
+    raise NotImplementedError
+
+@convert('convert rose: -matte -virtual-pixel transparent +distort SRT "0,0 .9 0 .5,0" +repage  rose_distort_shift.miff')
+def test_rose_distort_shift(ctx):
+    raise NotImplementedError
+
+@convert('convert rose_distort_shift.miff -crop 15x15+0+0 +repage -scale 600% rose_distort_shift_mag.miff')
+def test_rose_distort_shift_mag(ctx):
+    raise NotImplementedError
+
+@convert('convert rose: -filter Lanczos -resize 300x rose_resize.miff')
+def test_rose_resize(ctx):
+    raise NotImplementedError
+
+@convert('convert rose: -filter Lanczos -distort Resize 300x rose_distort.miff')
+def test_rose_distort(ctx):
+    raise NotImplementedError

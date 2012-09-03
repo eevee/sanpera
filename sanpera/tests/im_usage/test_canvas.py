@@ -8,9 +8,12 @@ from sanpera.color import Color
 from sanpera.geometry import Size
 from sanpera.image import Image, builtins
 from sanpera.tests.im_usage.common import convert
+from sanpera.tests.util import get_image
 
 
 ### Solid Color Canvases
+
+# Direct Generation
 
 @convert('convert -size 100x100 canvas:khaki canvas_khaki.miff')
 def test_khaki(ctx):
@@ -34,3 +37,77 @@ def test_rose_pixel(ctx):
     img = img.cropped(Size(1, 1).at((40, 30)))
     img = img.resized((100, 100), filter='box')
     ctx.compare(img, 'canvas_pick.miff')
+
+# Overlay a Specific Color
+
+@convert('convert test.png +matte -fill Sienna -colorize 100% color_colorize.miff')
+def test_color_colorize(ctx):
+    img[0].translucent = False
+    # oops, no colorize
+    raise NotImplementedError
+
+@convert('convert test.png -alpha Opaque +level-colors Chocolate color_levelc.miff')
+def test_color_levelc(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -alpha Off -sparse-color Voronoi "0,0 Peru" color_sparse.miff')
+def test_color_sparse(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -fill Tan -draw "color 0,0 reset" color_reset.miff')
+def test_color_reset(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -background Wheat -compose Dst -flatten color_flatten.miff')
+def test_color_flatten(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -background LemonChiffon -compose Dst -extent 100x100   color_extent.miff')
+def test_color_extent(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -bordercolor Khaki -compose Dst -border 0   color_border.miff')
+def test_color_border(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png +matte -fx Gold  color_fx_constant.miff')
+def test_color_fx_constant(ctx):
+    gold = Color.parse('gold')
+    from sanpera.filter import Filter
+    class GoldFilter(Filter):
+        def filter(self, *a):
+            return gold
+
+    img = get_image('test.png')
+    img[0].translucent = False
+    img = GoldFilter().apply(img[0])
+    ctx.compare(img, 'color_fx_constant.miff')
+
+@convert('convert test.png +matte -fx "Gold*.7" color_fx_math.miff')
+def test_color_fx_math(ctx):
+    raise NotImplementedError
+
+@convert('convert test.png -matte -fill #FF000040 -draw "color 0,0 reset" color_semitrans.miff')
+def test_color_semitrans(ctx):
+    raise NotImplementedError
+
+# Other Canvas Techniques
+
+
+### Gradients of Colors
+
+
+
+### Sparse Points of Color
+
+
+
+### Plasma Images
+
+
+
+### Random Images
+
+
+
+### Tiled Canvases
