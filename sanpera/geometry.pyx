@@ -394,6 +394,32 @@ cdef class Rectangle:
         return NotImplemented
 
 
+    ### Properties
+
+    property left:
+        def __get__(self):
+            return self._x1
+
+    property right:
+        def __get__(self):
+            return self._x2
+
+    property top:
+        def __get__(self):
+            return self._y1
+
+    property bottom:
+        def __get__(self):
+            return self._y2
+
+    property width:
+        def __get__(self):
+            return self._x2 - self._x1
+
+    property height:
+        def __get__(self):
+            return self._y2 - self._y1
+
     ### Conversion
 
     cdef c_api.RectangleInfo to_rect_info(self):

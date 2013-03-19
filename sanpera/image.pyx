@@ -11,7 +11,7 @@ cimport libc.stdio
 from collections import namedtuple
 
 from sanpera cimport c_api
-from sanpera.color cimport Color
+from sanpera.color cimport RGBColor, _double_to_quantum, _quantum_to_double
 from sanpera.geometry cimport Size, Rectangle, Vector
 from sanpera.exception cimport MagickException, check_magick_exception
 
@@ -28,6 +28,143 @@ from sanpera.exception import EmptyImageError, MissingFormatError
 
 
 ### Frame
+
+cdef class PixelViewPixel:
+    """Transient pixel access object.  Can be used to examine and set a single
+    pixel's color.
+    """
+    # Note that this stuff is only set by its consumer, PixelView
+    cdef c_api.PixelPacket* _pixel
+    cdef PixelView owner
+    cdef int _x
+    cdef int _y
+
+    def __init__(self):
+        raise TypeError("PixelViewPixel cannot be instantiated directly")
+
+    property color:
+        # XXX this needs to do something special to handle non-rgba images
+        def __get__(self):
+            if self._pixel == NULL:
+                raise ValueError("Pixel has expired")
+            return RGBColor(
+                _quantum_to_double(self._pixel.red),
+                _quantum_to_double(self._pixel.green),
+                _quantum_to_double(self._pixel.blue),
+                # ImageMagick thinks opacity is transparency
+                1.0 - _quantum_to_double(self._pixel.opacity))
+
+        def __set__(self, RGBColor value):
+            if self._pixel == NULL:
+                raise ValueError("Pixel has expired")
+            self._pixel.red = _double_to_quantum(value._red)
+            self._pixel.green = _double_to_quantum(value._green)
+            self._pixel.blue = _double_to_quantum(value._blue)
+            # ImageMagick thinks opacity is transparency
+            self._pixel.opacity = _double_to_quantum(1.0 - value._opacity)
+
+    property point:
+        def __get__(self):
+            return Vector(self._x, self._y)
+
+cdef class PixelView:
+    """Can view and manipulate individual pixels of a frame."""
+
+    cdef c_api.CacheView* _ptr
+    cdef ImageFrame _frame
+
+    def __cinit__(self):
+        self._frame = None
+        self._ptr = NULL
+
+    def __init__(self, ImageFrame frame not None):
+        self._frame = frame
+        self._ptr = c_api.AcquireCacheView(frame._frame)
+
+    def __dealloc__(self):
+        cdef MagickException exc = MagickException()
+
+        if self._ptr:
+            c_api.SyncCacheViewAuthenticPixels(self._ptr, exc.ptr)
+            c_api.DestroyCacheView(self._ptr)
+        self._ptr = NULL
+
+        # Only risk raising an exception AFTER clearing the pointer!
+        exc.check()
+
+    def __getitem__(self, point):
+        point = Vector.coerce(point)
+
+        cdef MagickException exc = MagickException()
+        cdef c_api.PixelPacket px
+
+        # TODO retval is t/f
+        c_api.GetOneCacheViewAuthenticPixel(self._ptr, point.x, point.y, &px, exc.ptr)
+        exc.check()
+
+        return RGBColor(
+            _quantum_to_double(px.red),
+            _quantum_to_double(px.green),
+            _quantum_to_double(px.blue),
+            # ImageMagick thinks opacity is transparency
+            1.0 - _quantum_to_double(px.opacity))
+
+
+
+
+    #def iter(self, Rectangle rect = None):
+    def __iter__(self):
+        rect = self._frame.canvas
+
+        cdef int rows = self._frame._frame.rows
+        cdef int columns = self._frame._frame.columns
+
+        cdef int x
+        cdef int y
+
+        cdef MagickException exc = MagickException()
+
+        cdef c_api.PixelPacket* q
+
+        cdef PixelViewPixel pixel = PixelViewPixel.__new__(PixelViewPixel)
+        pixel.owner = self
+
+        for y in range(rect.top, rect.bottom):
+            q = c_api.GetCacheViewAuthenticPixels(self._ptr, rect.left, y, rect.width, 1, exc.ptr)
+            # TODO check q for NULL
+            exc.check()
+
+            # TODO is this useful who knows
+            #fx_indexes=GetCacheViewAuthenticIndexQueue(fx_view);
+
+            try:
+                for x in range(rect.left, rect.right):
+                    # TODO this probably needs to do something else for indexed
+                    try:
+                        # TODO rather than /always/ reusing the same pixel
+                        # object, only reuse it if it's detected as only having
+                        # one refcnt left  :)
+                        pixel._pixel = q
+                        pixel._x = x
+                        pixel._y = y
+                        yield pixel
+                    finally:
+                        pixel._pixel = NULL
+
+                    #ret = ClampToQuantum((MagickRealType) QuantumRange * ret)
+                    # TODO opacity...
+
+                    # XXX this is black for CMYK
+                    #  if (((channel & IndexChannel) != 0) && (fx_image->colorspace == CMYKColorspace)) {
+                    #      SetPixelIndex(fx_indexes+x,ClampToQuantum((MagickRealType) QuantumRange*alpha));
+                    #    }
+
+                    inc(q)
+            finally:
+                # TODO check return value
+                c_api.SyncCacheViewAuthenticPixels(self._ptr, exc.ptr)
+                exc.check()
+
 
 cdef class ImageFrame:
     """Represents a single frame, and knows how to perform most operations on
@@ -93,6 +230,35 @@ cdef class ImageFrame:
                 self._frame.page.height != self._frame.rows
             )
 
+    property translucent:
+        """`True` if this frame has an alpha channel.
+
+        You can assign to this attribute to toggle the alpha channel; note that
+        if you set this to `True` and the frame did not previously have an
+        alpha channel, an all-opaque one will be created.
+        """
+        def __get__(self):
+            return self._frame.matte == c_api.MagickTrue
+
+        def __set__(self, bool value not None):
+            if value == self.translucent:
+                return
+
+            if value:
+                # Set the alpha channel
+                c_api.SetImageAlphaChannel(self._frame, c_api.SetAlphaChannel)
+            else:
+                # Disable it
+                c_api.SetImageAlphaChannel(self._frame, c_api.DeactivateAlphaChannel)
+
+            check_magick_exception(&self._frame.exception)
+
+    ### Pixel access
+
+    @property
+    def pixels(self):
+        return PixelView(self)
+
     ### Whole-frame manipulation
 
     # TODO perhaps a mutating version of this would be useful for painting
@@ -109,14 +275,18 @@ cdef class ImageFrame:
 
     ### Color
 
-    def replace_color(self, Color color, Color replacement,
+    def replace_color(self, RGBColor color, RGBColor replacement,
             *, float fuzz = 0.0):
 
-        color.c_struct.fuzz = fuzz
-        replacement.c_struct.fuzz = fuzz
+        cdef c_api.MagickPixelPacket from_
+        color._populate_magick_pixel(&from_)
+        from_.c_struct.fuzz = fuzz
 
-        c_api.OpaquePaintImage(self._frame, &color.c_struct, &replacement.c_struct,
-            c_api.MagickFalse)
+        cdef c_api.MagickPixelPacket to
+        replacement._populate_magick_pixel(&to)
+        to.c_struct.fuzz = fuzz
+
+        c_api.OpaquePaintImage(self._frame, &from_, &to, c_api.MagickFalse)
 
 
 cdef ImageFrame _ImageFrame_factory(c_api.Image* frame):
@@ -154,20 +324,22 @@ cdef class Image:
         pass
 
     @classmethod
-    def new(type cls, size not None, *, Color fill=None):
+    def new(type cls, size not None, *, RGBColor fill=None):
         """Create a new image (with one frame) of the given size."""
         size = Size.coerce(size)
 
         cdef Image self = cls()
         cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
-        cdef MagickException exc = MagickException()
+        cdef c_api.MagickPixelPacket magick_pixel
 
         try:
             if fill is None:
                 # TODO need a way to explicitly create a certain color
-                fill = Color.parse('#00000000')
+                fill = RGBColor.parse('#00000000')
 
-            self._stack = c_api.NewMagickImage(image_info, size.width, size.height, &fill.c_struct)
+            fill._populate_magick_pixel(&magick_pixel)
+
+            self._stack = c_api.NewMagickImage(image_info, size.width, size.height, &magick_pixel)
             check_magick_exception(&self._stack.exception)
         finally:
             c_api.DestroyImageInfo(image_info)

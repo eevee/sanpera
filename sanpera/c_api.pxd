@@ -328,6 +328,8 @@ cdef extern from "magick/pixel.h":
     double GetPixelRed(PixelPacket*)
     double SetPixelRed(PixelPacket*, double)
 
+    void GetMagickPixelPacket(Image*, MagickPixelPacket*)
+
 
 ### COLOR
 
