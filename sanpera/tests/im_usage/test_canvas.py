@@ -4,9 +4,10 @@ examples.
 See: http://www.imagemagick.org/Usage/canvas/
 """
 
-from sanpera.color import Color
+from sanpera.color import RGBColor
 from sanpera.geometry import Size
 from sanpera.image import Image, builtins
+from sanpera.filters import evaluate
 from sanpera.tests.im_usage.common import convert
 from sanpera.tests.util import get_image
 
@@ -17,18 +18,18 @@ from sanpera.tests.util import get_image
 
 @convert('convert -size 100x100 canvas:khaki canvas_khaki.miff')
 def test_khaki(ctx):
-    img = Image.new((100, 100), fill=Color.parse('khaki'))
+    img = Image.new((100, 100), fill=RGBColor.parse('khaki'))
     ctx.compare(img, 'canvas_khaki.miff')
 
 @convert('convert -size 100x100 xc:wheat canvas_wheat.miff')
 def test_wheat(ctx):
-    img = Image.new((100, 100), fill=Color.parse('wheat'))
+    img = Image.new((100, 100), fill=RGBColor.parse('wheat'))
     ctx.compare(img, 'canvas_wheat.miff')
 
 @convert('convert canvas_khaki.miff -fill tomato -opaque khaki canvas_opaque.miff')
 def test_khaki_to_tomato(ctx):
-    img = Image.new((100, 100), fill=Color.parse('khaki'))
-    img[0].replace_color(Color.parse('khaki'), Color.parse('tomato'))
+    img = Image.new((100, 100), fill=RGBColor.parse('khaki'))
+    img[0].replace_color(RGBColor.parse('khaki'), RGBColor.parse('tomato'))
     ctx.compare(img, 'canvas_opaque.miff')
 
 @convert('convert rose: -crop 1x1+40+30 +repage -scale 100x100! canvas_pick.miff')
@@ -72,20 +73,25 @@ def test_color_border(ctx):
 
 @convert('convert test.png +matte -fx Gold  color_fx_constant.miff')
 def test_color_fx_constant(ctx):
-    gold = Color.parse('gold')
-    from sanpera.filter import Filter
-    class GoldFilter(Filter):
-        def filter(self, *a):
-            return gold
+    gold = RGBColor.parse('gold')
+    def gold_filter(self, *a):
+        return gold
 
     img = get_image('test.png')
     img[0].translucent = False
-    img = GoldFilter().apply(img[0])
+    img = evaluate(gold_filter, *img)
     ctx.compare(img, 'color_fx_constant.miff')
 
 @convert('convert test.png +matte -fx "Gold*.7" color_fx_math.miff')
 def test_color_fx_math(ctx):
-    raise NotImplementedError
+    gold = RGBColor.parse('gold')
+    def gold_filter(self, *a):
+        return gold * 0.7
+
+    img = get_image('test.png')
+    img[0].translucent = False
+    img = evaluate(gold_filter, *img)
+    ctx.compare(img, 'color_fx_math.miff')
 
 @convert('convert test.png -matte -fill #FF000040 -draw "color 0,0 reset" color_semitrans.miff')
 def test_color_semitrans(ctx):

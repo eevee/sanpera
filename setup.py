@@ -81,6 +81,7 @@ setup(
         ext_module('color'),
         ext_module('core'),
         ext_module('exception'),
+        ext_module('filters'),
         ext_module('format'),
         ext_module('geometry'),
         ext_module('image'),

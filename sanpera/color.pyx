@@ -13,7 +13,13 @@ cdef double _quantum_to_double(c_api.Quantum value):
     return <double>value / c_api.QuantumRange
 
 cdef c_api.Quantum _double_to_quantum(double value):
-    return <c_api.Quantum>(value * c_api.QuantumRange)
+    return c_api.ClampToQuantum(value * c_api.QuantumRange)
+
+cdef double _real_quantum_to_double(c_api.MagickRealType value):
+    return <double>value / c_api.QuantumRange
+
+cdef c_api.MagickRealType _double_to_real_quantum(double value):
+    return value * c_api.QuantumRange
 
 
 # TODO: handle more colorspaces, and arbitrary extra channels.
@@ -31,6 +37,9 @@ cdef class BaseColor:
     All colors are immutable.  Convenience methods exist to make simple
     modifications, which will return a new color.
     """
+
+    # TODO maybe i should just store the opacity like IM does, and only convert
+    # when exposing to python  :|  and call it alpha.
 
     COLOR_WHEEL = [
         "red", "orange", "yellow", "chartreuse",
@@ -155,16 +164,17 @@ cdef class BaseColor:
 
         cdef MagickException exc = MagickException()
         cdef c_api.MagickStatusType success
-        cdef c_api.MagickPixelPacket pixel
+        cdef c_api.PixelPacket pixel
 
-        c_api.GetMagickPixelPacket(NULL, &pixel);
-        success = c_api.QueryMagickColor(name, &pixel, exc.ptr)
+        success = c_api.QueryColorDatabase(name, &pixel, exc.ptr)
         exc.check()
         if not success:
             raise ValueError("Can't find a color named {0!r}".format(name))
 
         # TODO well ok clearly this isn't much of a classmethod
-        return RGBColor(pixel.red, pixel.green, pixel.blue, pixel.opacity)
+        print pixel
+        print "pixel...",  _color_from_pixel(&pixel)
+        return _color_from_pixel(&pixel)
 
     @classmethod
     def coerce(type cls not None, value not None):
@@ -176,13 +186,38 @@ cdef class BaseColor:
         return cls.parse(value)
 
 
+    cdef _populate_pixel(self, c_api.PixelPacket* pixel):
+        cdef RGBColor rgbself = self.rgb()
+        pixel.red = _double_to_quantum(rgbself._red)
+        pixel.green = _double_to_quantum(rgbself._green)
+        pixel.blue = _double_to_quantum(rgbself._blue)
+        pixel.opacity = _double_to_quantum(1.0 - rgbself._opacity)
+        # TODO extra channels?
+
     cdef _populate_magick_pixel(self, c_api.MagickPixelPacket* pixel):
         cdef RGBColor rgbself = self.rgb()
-        pixel.red = rgbself._red
-        pixel.green = rgbself._green
-        pixel.blue = rgbself._blue
-        pixel.opacity = rgbself._opacity
+        pixel.red = _double_to_quantum(rgbself._red)
+        pixel.green = _double_to_quantum(rgbself._green)
+        pixel.blue = _double_to_quantum(rgbself._blue)
+        pixel.opacity = _double_to_quantum(1.0 - rgbself._opacity)
         # TODO extra channels?
+
+
+cdef BaseColor _color_from_magick_pixel(c_api.MagickPixelPacket* pixel):
+    # TODO this should also accept a colorspace and return the right class
+    return RGBColor(
+        _real_quantum_to_double(pixel.red),
+        _real_quantum_to_double(pixel.green),
+        _real_quantum_to_double(pixel.blue),
+        1.0 - _real_quantum_to_double(pixel.opacity))
+
+cdef BaseColor _color_from_pixel(c_api.PixelPacket* pixel):
+    # TODO this should also accept a colorspace and return the right class
+    return RGBColor(
+        _quantum_to_double(pixel.red),
+        _quantum_to_double(pixel.green),
+        _quantum_to_double(pixel.blue),
+        1.0 - _quantum_to_double(pixel.opacity))
 
 
 
@@ -196,8 +231,8 @@ cdef class RGBColor(BaseColor):
 
     def __repr__(self):
         # TODO opacity
-        return "<RGBColor {0:0.3f} red, {1:0.3f} green, {2:0.3f} blue ({3})>".format(
-            self._red, self._green, self._blue, self.description)
+        return "<RGBColor {0:0.3f} red, {1:0.3f} green, {2:0.3f} blue ({3}) {4:0.1f}% opacity>".format(
+            self._red, self._green, self._blue, self.description, self._opacity * 100)
 
     def __richcmp__(self, other, int op):
         if op not in (2, 3):
@@ -225,6 +260,28 @@ cdef class RGBColor(BaseColor):
         elif op == 3:
             # !=
             return not eq
+
+    def __mul__(self, other):
+        # TODO does this semantic make sense?  it's just what IM's fx syntax
+        # does
+        # TODO this is only defined for RGB.  move it to base and just make it
+        # convert to RGB, then back to the original class...?
+        cdef RGBColor color
+        cdef float factor
+
+        if isinstance(self, RGBColor):
+            color = self
+            factor = other
+        else:
+            factor = self
+            color = other
+
+        # TODO extra channels
+        return RGBColor(
+            color._red * factor,
+            color._green * factor,
+            color._blue * factor,
+            color._opacity)
 
     property red:
         def __get__(self):

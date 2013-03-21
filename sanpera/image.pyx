@@ -176,8 +176,6 @@ cdef class ImageFrame:
     # existing Image, the frame might persist after the image is destroyed, so
     # we need to use refcounting
 
-    cdef c_api.Image* _frame
-
     def __cinit__(self):
         self._frame = NULL
 
@@ -280,11 +278,11 @@ cdef class ImageFrame:
 
         cdef c_api.MagickPixelPacket from_
         color._populate_magick_pixel(&from_)
-        from_.c_struct.fuzz = fuzz
+        from_.fuzz = fuzz
 
         cdef c_api.MagickPixelPacket to
         replacement._populate_magick_pixel(&to)
-        to.c_struct.fuzz = fuzz
+        to.fuzz = fuzz
 
         c_api.OpaquePaintImage(self._frame, &from_, &to, c_api.MagickFalse)
 
@@ -301,9 +299,6 @@ cdef class Image:
     """An image.  If you don't know what this is, you may be using the wrong
     library.
     """
-
-    cdef c_api.Image* _stack
-    cdef list _frames
 
     def __cinit__(self):
         self._stack = NULL
@@ -331,11 +326,12 @@ cdef class Image:
         cdef Image self = cls()
         cdef c_api.ImageInfo* image_info = c_api.CloneImageInfo(NULL)
         cdef c_api.MagickPixelPacket magick_pixel
+        c_api.GetMagickPixelPacket(NULL, &magick_pixel)
 
         try:
             if fill is None:
                 # TODO need a way to explicitly create a certain color
-                fill = RGBColor.parse('#00000000')
+                fill = RGBColor(0., 0., 0., 0.)
 
             fill._populate_magick_pixel(&magick_pixel)
 
