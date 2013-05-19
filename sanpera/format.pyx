@@ -39,10 +39,10 @@ cdef _get_formats():
     cdef str name
     try:
         for i in range(num_formats):
-            name = magick_infos[i].name
+            name = magick_infos[i].name.decode('ascii')
             formats[name] = ImageFormat(
                 name=name,
-                description=magick_infos[i].description,
+                description=magick_infos[i].description.decode('ascii'),
                 can_read=magick_infos[i].decoder != NULL,
                 can_write=magick_infos[i].encoder != NULL,
                 supports_frames=magick_infos[i].adjoin != 0,
