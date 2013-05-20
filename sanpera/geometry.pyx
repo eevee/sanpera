@@ -9,6 +9,9 @@ from sanpera cimport c_api
 
 import math
 
+cdef int approx_equal(float f1, float f2, float epsilon=1e-6):
+    return abs(f1 - f2) < epsilon
+
 cdef class Vector:
     """I'm a direction and magnitude in a two-dimensional plane, where the axes
     increase rightwards and down.  I can also represent a single point.
@@ -295,6 +298,7 @@ cdef class Size(Vector):
         """Implementation for `fit_inside` and `fit_around`."""
 
         cdef Size coerced = self.__class__.coerce(other)
+        cdef float width_ratio, height_ratio, ratio
 
         if not upscale and (
                 self.width < coerced.width and self.height < coerced.height):
@@ -304,14 +308,14 @@ cdef class Size(Vector):
                 self.width > coerced.width and self.height > coerced.height):
             return self
 
-        ratio = minmax((
-            self.width / coerced.width,
-            self.height / coerced.height))
-
-        return self.__class__(
-            int(self.width / ratio),
-            int(self.height / ratio),
-        )
+        width_ratio = self.width / coerced.width
+        height_ratio = self.height / coerced.height
+        if approx_equal(width_ratio, height_ratio):
+            return coerced
+        elif approx_equal(minmax(width_ratio, height_ratio), width_ratio):
+            return self.__class__(coerced.width, int(self.height / width_ratio))
+        else:
+            return self.__class__(int(self.width / height_ratio), coerced.height)
 
 
 

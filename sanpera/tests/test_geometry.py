@@ -57,6 +57,16 @@ def test_size_fit_area():
     assert size.fit_area(10, emulate=True) == geom.Size(3, 4)
     assert size.fit_area(11, emulate=True) == geom.Size(3, 4)
 
+def test_size_fit_inside():
+    assert geom.Size(600, 398).fit_inside((120, 120)) == geom.Size(120, 79)
+    assert geom.Size(398, 600).fit_inside((120, 120)) == geom.Size(79, 120)
+    assert geom.Size(398, 398).fit_inside((120, 120)) == geom.Size(120, 120)
+
+def test_size_fit_around():
+    assert geom.Size(600, 398).fit_around((120, 120)) == geom.Size(180, 120)
+    assert geom.Size(398, 600).fit_around((120, 120)) == geom.Size(120, 180)
+    assert geom.Size(398, 398).fit_around((120, 120)) == geom.Size(120, 120)
+
 def test_rect_zero():
     assert geom.Rectangle(0, 0, 10, 10)
     assert not geom.Rectangle(5, 5, 5, 10)
