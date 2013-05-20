@@ -694,15 +694,27 @@ cdef class Image:
         if filter == 'box':
             c_filter = c_api.BoxFilter
 
+        cdef double ratio_width = size.width / (self._stack.page.width or self._stack.columns)
+        cdef double ratio_height = size.height / (self._stack.page.height or self._stack.rows)
+        cdef int frame_width
+        cdef int frame_height
+
         while p:
+            # Alrighty, so.  ResizeImage takes the given size as the new size
+            # of the FRAME, rather than the CANVAS, which is almost certainly
+            # not what anyone expects.  So do the math to fix this manually,
+            # converting from canvas size to frame size.
+            frame_width = <int>(p.columns * ratio_width)
+            frame_height = <int>(p.rows * ratio_height)
+
             try:
                 if c_filter == c_api.BoxFilter:
                     # Use the faster ScaleImage in this special case
                     new_frame = c_api.ScaleImage(
-                        p, size.width, size.height, exc.ptr)
+                        p, frame_width, frame_height, exc.ptr)
                 else:
                     new_frame = c_api.ResizeImage(
-                        p, size.width, size.height,
+                        p, frame_width, frame_height,
                         c_filter, 1.0, exc.ptr)
 
                 exc.check()
