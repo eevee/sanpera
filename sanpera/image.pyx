@@ -694,8 +694,10 @@ cdef class Image:
         if filter == 'box':
             c_filter = c_api.BoxFilter
 
-        cdef double ratio_width = size.width / (self._stack.page.width or self._stack.columns)
-        cdef double ratio_height = size.height / (self._stack.page.height or self._stack.rows)
+        cdef int target_width = size.width
+        cdef int target_height = size.height
+        cdef double ratio_width = target_width / (self._stack.page.width or self._stack.columns)
+        cdef double ratio_height = target_height / (self._stack.page.height or self._stack.rows)
         cdef int frame_width
         cdef int frame_height
 
@@ -704,8 +706,8 @@ cdef class Image:
             # of the FRAME, rather than the CANVAS, which is almost certainly
             # not what anyone expects.  So do the math to fix this manually,
             # converting from canvas size to frame size.
-            frame_width = <int>(p.columns * ratio_width)
-            frame_height = <int>(p.rows * ratio_height)
+            frame_width = <int>(p.columns * ratio_width + 0.5)
+            frame_height = <int>(p.rows * ratio_height + 0.5)
 
             try:
                 if c_filter == c_api.BoxFilter:
@@ -721,6 +723,16 @@ cdef class Image:
             except Exception:
                 c_api.DestroyImage(new_frame)
                 raise
+
+            # ImageMagick uses new_size/old_size to compute the resized frame's
+            # position.  But new_size has already been rounded, so for small
+            # frames in a large image, the double rounding error can place the
+            # new frame a noticable distance from where one might expect.  Fix
+            # the canvas manually, too.
+            new_frame.page.width = target_width
+            new_frame.page.height = target_height
+            new_frame.page.x = <int>(p.page.x * ratio_width + 0.5)
+            new_frame.page.y = <int>(p.page.y * ratio_height + 0.5)
 
             c_api.AppendImageToList(&new._stack, new_frame)
             p = c_api.GetNextImageInList(p)

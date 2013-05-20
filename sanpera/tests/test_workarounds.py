@@ -26,10 +26,10 @@ def test_multi_frame_resize():
     # Resized dimensions -- reduced by half
     assert img.size == Size(50, 50)
     assert img[0].size == Size(16, 16)
-    assert img[0].canvas.position == Vector(2, 5)
+    assert img[0].canvas.position == Vector(3, 5)
     assert img[1].size == Size(16, 16)
-    assert img[1].canvas.position == Vector(17, 15)
+    assert img[1].canvas.position == Vector(18, 15)
     assert img[2].size == Size(16, 16)
     assert img[2].canvas.position == Vector(31, 25)
     assert img[3].size == Size(16, 16)
-    assert img[3].canvas.position == Vector(5, 27)
+    assert img[3].canvas.position == Vector(5, 28)
