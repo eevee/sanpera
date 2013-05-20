@@ -296,7 +296,9 @@ cdef extern from "magick/quantum.h":
     ctypedef struct QuantumInfo:
         pass
 
-    Quantum ClampToQuantum(MagickRealType)
+    # TODO: this has been called ClampToQuantum since 2010, but some users
+    # are still on 6.5.x, so I'm using the old name for now.
+    Quantum RoundToQuantum(MagickRealType)
     unsigned char ScaleQuantumToChar(Quantum)
 
     # NOTE: there's more, but unclear if any is useful

@@ -151,12 +151,12 @@ cdef class PixelView:
                     finally:
                         pixel._pixel = NULL
 
-                    #ret = ClampToQuantum((MagickRealType) QuantumRange * ret)
+                    #ret = RoundToQuantum((MagickRealType) QuantumRange * ret)
                     # TODO opacity...
 
                     # XXX this is black for CMYK
                     #  if (((channel & IndexChannel) != 0) && (fx_image->colorspace == CMYKColorspace)) {
-                    #      SetPixelIndex(fx_indexes+x,ClampToQuantum((MagickRealType) QuantumRange*alpha));
+                    #      SetPixelIndex(fx_indexes+x,RoundToQuantum((MagickRealType) QuantumRange*alpha));
                     #    }
 
                     inc(q)

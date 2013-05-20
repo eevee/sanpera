@@ -13,7 +13,7 @@ cdef double _quantum_to_double(c_api.Quantum value):
     return <double>value / c_api.QuantumRange
 
 cdef c_api.Quantum _double_to_quantum(double value):
-    return c_api.ClampToQuantum(value * c_api.QuantumRange)
+    return c_api.RoundToQuantum(value * c_api.QuantumRange)
 
 cdef double _real_quantum_to_double(c_api.MagickRealType value):
     return <double>value / c_api.QuantumRange

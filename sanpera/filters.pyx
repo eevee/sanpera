@@ -102,15 +102,15 @@ def evaluate(filter_function, *frames):
             state._color = _color_from_pixel(q)
             ret = filter_function(state)
 
-            #q.red = c_api.ClampToQuantum(<c_api.MagickRealType> ret.c_struct.red * c_api.QuantumRange)
-            #q.green = c_api.ClampToQuantum(<c_api.MagickRealType> ret.c_struct.green * c_api.QuantumRange)
-            #q.blue = c_api.ClampToQuantum(<c_api.MagickRealType> ret.c_struct.blue * c_api.QuantumRange)
+            #q.red = c_api.RoundToQuantum(<c_api.MagickRealType> ret.c_struct.red * c_api.QuantumRange)
+            #q.green = c_api.RoundToQuantum(<c_api.MagickRealType> ret.c_struct.green * c_api.QuantumRange)
+            #q.blue = c_api.RoundToQuantum(<c_api.MagickRealType> ret.c_struct.blue * c_api.QuantumRange)
             ret._populate_pixel(q)
 
             # XXX this is actually black
             #  if (((channel & IndexChannel) != 0) && (fx_image->colorspace == CMYKColorspace)) {
             #      (void) FxEvaluateChannelExpression(fx_info[id],IndexChannel,x,y, &alpha,exception);
-            #      SetPixelIndex(fx_indexes+x,ClampToQuantum((MagickRealType) QuantumRange*alpha));
+            #      SetPixelIndex(fx_indexes+x,RoundToQuantum((MagickRealType) QuantumRange*alpha));
             #    }
 
             inc(q)
