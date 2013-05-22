@@ -58,11 +58,37 @@ def test_size_fit_area():
     assert size.fit_area(11, emulate=True) == geom.Size(3, 4)
 
 def test_size_fit_inside():
+    assert geom.Size(50, 50).fit_inside((10, 10)) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_inside((20, 10)) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_inside((10, 20)) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_inside((10, 10), upscale=False) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_inside((10, 10), downscale=False) == geom.Size(50, 50)
+
+    assert geom.Size(50, 50).fit_inside((100, 100)) == geom.Size(100, 100)
+    assert geom.Size(50, 50).fit_inside((200, 100)) == geom.Size(100, 100)
+    assert geom.Size(50, 50).fit_inside((100, 200)) == geom.Size(100, 100)
+    assert geom.Size(50, 50).fit_inside((100, 100), upscale=False) == geom.Size(50, 50)
+    assert geom.Size(50, 50).fit_inside((100, 100), downscale=False) == geom.Size(100, 100)
+
+    # Float rounding edge cases
     assert geom.Size(600, 398).fit_inside((120, 120)) == geom.Size(120, 79)
     assert geom.Size(398, 600).fit_inside((120, 120)) == geom.Size(79, 120)
     assert geom.Size(398, 398).fit_inside((120, 120)) == geom.Size(120, 120)
 
 def test_size_fit_around():
+    assert geom.Size(50, 50).fit_around((10, 10)) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_around((20, 10)) == geom.Size(20, 20)
+    assert geom.Size(50, 50).fit_around((10, 20)) == geom.Size(20, 20)
+    assert geom.Size(50, 50).fit_around((10, 10), upscale=False) == geom.Size(10, 10)
+    assert geom.Size(50, 50).fit_around((10, 10), downscale=False) == geom.Size(50, 50)
+
+    assert geom.Size(50, 50).fit_around((100, 100)) == geom.Size(100, 100)
+    assert geom.Size(50, 50).fit_around((200, 100)) == geom.Size(200, 200)
+    assert geom.Size(50, 50).fit_around((100, 200)) == geom.Size(200, 200)
+    assert geom.Size(50, 50).fit_around((100, 100), upscale=False) == geom.Size(50, 50)
+    assert geom.Size(50, 50).fit_around((100, 100), downscale=False) == geom.Size(100, 100)
+
+    # Float rounding edge cases
     assert geom.Size(600, 398).fit_around((120, 120)) == geom.Size(180, 120)
     assert geom.Size(398, 600).fit_around((120, 120)) == geom.Size(120, 180)
     assert geom.Size(398, 398).fit_around((120, 120)) == geom.Size(120, 120)
