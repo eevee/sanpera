@@ -1096,3 +1096,9 @@ cdef extern from "magick/layer.h":
     Image* CoalesceImages(Image *, ExceptionInfo *)
     Image* OptimizeImageLayers(Image *, ExceptionInfo *)
     void OptimizeImageTransparency(Image *, ExceptionInfo *)
+
+
+### FX (image effects)
+
+cdef extern from "magick/fx.h":
+     Image* ColorizeImage(const Image* image, const char* opacity, const PixelPacket colorize, ExceptionInfo* exception)

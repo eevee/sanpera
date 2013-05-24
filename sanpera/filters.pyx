@@ -28,7 +28,36 @@ import sanpera.core
 # - apply a filter to multiple frames at once, accessed by index
 # -
 
-# XXX should this be named, um.  filter?  math?  process??
+cdef class BuiltinFilter:
+    """Exposes a filter that already has a fast C implementation."""
+    cdef c_api.Image* _implementation(self, c_api.Image* frame) except NULL:
+        raise NotImplementedError
+
+cdef class ColorizeFilter(BuiltinFilter):
+    cdef RGBColor _color
+    cdef float _amount
+
+    def __init__(self, BaseColor color, float amount):
+        self._color = color.rgb()
+        self._amount = amount
+
+    cdef c_api.Image* _implementation(self, c_api.Image* frame) except NULL:
+        cdef c_api.Image* ret = NULL
+
+        # This is incredibly stupid, but yes, ColorizeImage only accepts a
+        # string for the opacity.
+        opacity = str(self._amount * 100.) + "%"
+
+        cdef c_api.PixelPacket color
+        self._color._populate_pixel(&color)
+
+        cdef MagickException exc = MagickException()
+
+        ret = c_api.ColorizeImage(frame, opacity, color, exc.ptr)
+        exc.check()
+
+        return ret
+
 
 cdef class FilterState:
     cdef BaseColor _color
@@ -48,11 +77,23 @@ def evaluate(filter_function, *frames):
 
     cdef ImageFrame frame = frames[0]
     cdef MagickException exc = MagickException()
+    cdef Image result = Image()
+    cdef c_api.Image* new_frame
+
+    # TODO i am, shall we say, not enamored with this approach
+    cdef BuiltinFilter builtin
+    if isinstance(filter_function, BuiltinFilter):
+        builtin = filter_function
+        new_frame = builtin._implementation(frame._frame)
+        c_api.AppendImageToList(&result._stack, new_frame)
+        result._post_init()
+        return result
+
 
     # TODO does this create a blank image or actually duplicate the pixels??  docs say it actually copies with (0, 0) but the code just refs the same pixel cache?
     # TODO could use an inplace version for, e.g. the SVG-style compose operators
     # TODO also might want a different sized clone!
-    cdef c_api.Image* new_frame = c_api.CloneImage(frame._frame, 0, 0, c_api.MagickTrue, exc.ptr)
+    new_frame = c_api.CloneImage(frame._frame, 0, 0, c_api.MagickTrue, exc.ptr)
     exc.check(new_frame == NULL)
 
     # TODO: set image to full-color.
@@ -64,7 +105,6 @@ def evaluate(filter_function, *frames):
     #      return((Image *) NULL);
     #    }
 
-    cdef Image result = Image()
     c_api.AppendImageToList(&result._stack, new_frame)
 
     cdef c_api.CacheView* out_view = c_api.AcquireCacheView(result._stack)

@@ -7,7 +7,7 @@ See: http://www.imagemagick.org/Usage/canvas/
 from sanpera.color import RGBColor
 from sanpera.geometry import Size
 from sanpera.image import Image, builtins
-from sanpera.filters import evaluate
+from sanpera.filters import ColorizeFilter, evaluate
 from sanpera.tests.im_usage.common import convert
 from sanpera.tests.util import get_image
 
@@ -43,9 +43,10 @@ def test_rose_pixel(ctx):
 
 @convert('convert test.png +matte -fill Sienna -colorize 100% color_colorize.miff')
 def test_color_colorize(ctx):
+    img = get_image('test.png')
     img[0].translucent = False
-    # oops, no colorize
-    raise NotImplementedError
+    img = evaluate(ColorizeFilter(RGBColor.parse('sienna'), 1.0), *img)
+    ctx.compare(img, 'color_colorize.miff')
 
 @convert('convert test.png -alpha Opaque +level-colors Chocolate color_levelc.miff')
 def test_color_levelc(ctx):
