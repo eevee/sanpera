@@ -1088,3 +1088,11 @@ cdef extern from "magick/cache-view.h":
     PixelPacket* GetCacheViewAuthenticPixelQueue(CacheView*)
     PixelPacket* GetCacheViewAuthenticPixels(CacheView*, ssize_t, ssize_t, size_t, size_t,ExceptionInfo*)
     PixelPacket* QueueCacheViewAuthenticPixels(CacheView*, ssize_t, ssize_t, size_t, size_t, ExceptionInfo*)
+
+
+### LAYER
+
+cdef extern from "magick/layer.h":
+    Image* CoalesceImages(Image *, ExceptionInfo *)
+    Image* OptimizeImageLayers(Image *, ExceptionInfo *)
+    void OptimizeImageTransparency(Image *, ExceptionInfo *)

@@ -770,6 +770,38 @@ cdef class Image:
         new._post_init()
         return new
 
+    def coalesced(self):
+        """Returns an image with each frame composited over previous frames."""
+        cdef Image new = self.__class__()
+        cdef c_api.Image* new_image
+        cdef MagickException exc = MagickException()
+
+        new_image = c_api.CoalesceImages(self._stack, exc.ptr)
+        exc.check()
+
+        new._stack = new_image
+        new._post_init()
+        return new
+
+    def optimized_for_animated_gif(self):
+        """Returns an image with frames optimized for animated GIFs.
+
+        Each frame will be compared with previous frames to shrink each frame
+        as much as possible while preserving the results of the animation.
+        """
+        cdef Image new = self.__class__()
+        cdef c_api.Image* new_image
+        cdef MagickException exc = MagickException()
+
+        new_image = c_api.OptimizeImageLayers(self._stack, exc.ptr)
+        exc.check()
+        c_api.OptimizeImageTransparency(new_image, exc.ptr)
+        exc.check()
+
+        new._stack = new_image
+        new._post_init()
+        return new
+
 
 # TODO this should probably not live in cython
 class BuiltinRegistry(object):
