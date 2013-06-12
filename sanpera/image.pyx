@@ -756,13 +756,13 @@ cdef class Image:
                 raise
 
             # Repage by default after a crop; not doing this is unexpected and
-            # frankly insane
-            # TODO how necessary is this?  should it be done for frames?
+            # frankly insane.  Plain old `+repage` behavior would involve
+            # nuking the page entirely, but that would screw up multiple
+            # frames; instead, shift the canvas for every frame so the crop
+            # region's upper left corner is the new origin.
             if not preserve_canvas:
-                new_frame.page.x = 0
-                new_frame.page.y = 0
-                new_frame.page.width = 0
-                new_frame.page.height = 0
+                new_frame.page.x -= rect._x1
+                new_frame.page.y -= rect._y1
 
             c_api.AppendImageToList(&new._stack, new_frame)
             p = c_api.GetNextImageInList(p)
