@@ -360,7 +360,7 @@ cdef class Image:
             image_info.file = fh
 
             self._stack = c_api.ReadImage(image_info, exc.ptr)
-            exc.check()
+            exc.check(self._stack == NULL)
 
             # Blank out the filename so IM doesn't try to write to it later
             self._stack.filename[0] = <char>0
@@ -383,7 +383,7 @@ cdef class Image:
 
         try:
             self._stack = c_api.BlobToImage(image_info, <void*><char*>buf, len(buf), exc.ptr)
-            exc.check()
+            exc.check(self._stack == NULL)
 
             # Blank out the filename so IM doesn't try to write to it later --
             # yes, this is from an in-memory buffer, but sometimes IM will
@@ -411,7 +411,7 @@ cdef class Image:
             libc_string.strncpy(image_info.filename, <char*>name, c_api.MaxTextExtent)
 
             self._stack = c_api.ReadImage(image_info, exc.ptr)
-            exc.check()
+            exc.check(self._stack == NULL)
 
             # Blank out the filename and format so IM doesn't try to write them
             # later
