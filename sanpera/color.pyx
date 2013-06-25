@@ -21,6 +21,14 @@ cdef double _real_quantum_to_double(c_api.MagickRealType value):
 cdef c_api.MagickRealType _double_to_real_quantum(double value):
     return value * c_api.QuantumRange
 
+cdef float _clamp(float value):
+    if value < 0.0:
+        return 0.0
+    elif value > 1.0:
+        return 1.0
+    else:
+        return value
+
 
 # TODO: handle more colorspaces, and arbitrary extra channels.
 cdef class BaseColor:
@@ -203,6 +211,28 @@ cdef class BaseColor:
         # TODO extra channels?
 
 
+    ### Special methods
+
+    def __richcmp__(BaseColor left not None, BaseColor right not None, int op):
+        if not (op == 0 or op == 3):
+            return NotImplemented
+
+        cdef RGBColor left_rgb = left.rgb()
+        cdef RGBColor right_rgb = right.rgb()
+
+        eq = (
+            left_rgb._red == right_rgb._red
+            and left_rgb._green == right_rgb._green
+            and left_rgb._blue == right_rgb._blue
+            and left_rgb._opacity == right_rgb._opacity
+        )
+
+        if op == 0:
+            return eq
+        elif op == 3:
+            return not eq
+
+
 cdef BaseColor _color_from_magick_pixel(c_api.MagickPixelPacket* pixel):
     # TODO this should also accept a colorspace and return the right class
     return RGBColor(
@@ -230,7 +260,6 @@ cdef class RGBColor(BaseColor):
         self._extra_channels = ()
 
     def __repr__(self):
-        # TODO opacity
         return "<RGBColor {0:0.3f} red, {1:0.3f} green, {2:0.3f} blue ({3}) {4:0.1f}% opacity>".format(
             self._red, self._green, self._blue, self.description, self._opacity * 100)
 
@@ -283,6 +312,15 @@ cdef class RGBColor(BaseColor):
             color._blue * factor,
             color._opacity)
 
+    def clamped(self):
+        # TODO every color type
+        # TODO extra channels (clamp them??)
+        return RGBColor(
+            _clamp(self._red),
+            _clamp(self._green),
+            _clamp(self._blue),
+            _clamp(self._opacity))
+
     property red:
         def __get__(self):
             return self._red
@@ -306,11 +344,18 @@ cdef class RGBColor(BaseColor):
 
 cdef class HSLColor(BaseColor):
     def __init__(self, double hue, double saturation, double lightness, double opacity = 1.0):
+        if hue == 1.0:
+            hue = 0.0
+
         self._hue = hue
         self._saturation = saturation
         self._lightness = lightness
         self._opacity = opacity
         self._extra_channels = ()
+
+    def __repr__(self):
+        return "<HSLColor {0:0.3f} hue, {1:0.3f} sat, {2:0.3f} light ({3}) {4:0.1f}% opacity>".format(
+            self._hue, self._saturation, self._lightness, self.description, self._opacity * 100)
 
     property hue:
         def __get__(self):
