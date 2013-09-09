@@ -1,5 +1,6 @@
 """ImageMagick API bindings, for cffi."""
 
+import os.path
 import shlex
 import subprocess
 from subprocess import CalledProcessError
@@ -62,25 +63,15 @@ def find_imagemagick_configuration():
 
 ffi = cffi.FFI()
 
-# XXX the constants below only work if pkg-config worked
-ffi.cdef("""
-    const int MAGICKCORE_QUANTUM_DEPTH;
-    //const int MAGICKCORE_HDRI_SUPPORT;
+here = os.path.dirname(__file__)
 
-    const char *GetMagickCopyright(void);
-""")
-
+# For the sake of sanity and syntax highlighting, the C-ish parts are in
+# separate files with appropriate extensions.
+with open(os.path.join(here, '_api.h')) as f_headers:
+    ffi.cdef(f_headers.read())
 
 extension_kwargs = find_imagemagick_configuration()
-lib = ffi.verify("""
-    #include <magick/MagickCore.h>
-""", **extension_kwargs)
-
-
-# ------------------------------------------------------------------------------
-# Actual API
-
-
-# XXX actually i'm testing it lol
-print ffi.string(lib.GetMagickCopyright())
-print lib.MAGICKCORE_QUANTUM_DEPTH
+with open(os.path.join(here, '_api.c')) as f_stub:
+    lib = ffi.verify(
+        f_stub.read(),
+        **extension_kwargs)
