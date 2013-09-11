@@ -14,6 +14,8 @@ struct _Image;
 typedef struct _Image Image;
 struct _ImageInfo;
 typedef struct _ImageInfo ImageInfo;
+typedef ... CacheView;
+
 
 
 
@@ -56,7 +58,8 @@ static const int MAGICKCORE_QUANTUM_DEPTH;
 static float const QuantumRange;
 static char *const QuantumFormat;
 
-typedef ... MagickRealType;
+// XXX not right, not right at all
+typedef float MagickRealType;
 
 
 typedef enum {
@@ -230,6 +233,127 @@ Image *SpliceImageIntoList(Image **, const size_t, const Image *);
 Image *SplitImageList(Image *);
 void SyncImageList(Image *);
 Image *SyncNextImageInList(const Image *);
+
+
+// =============================================================================
+// pixel access
+// -----------------------------------------------------------------------------
+// pixel.h
+// (done)
+
+typedef enum {
+    UndefinedInterpolatePixel,
+    AverageInterpolatePixel,           /* Average 4 nearest neighbours */
+    BicubicInterpolatePixel,           /* Catmull-Rom interpolation */
+    BilinearInterpolatePixel,          /* Triangular filter interpolation */
+    FilterInterpolatePixel,            /* Use resize filter - (very slow) */
+    IntegerInterpolatePixel,           /* Integer (floor) interpolation */
+    MeshInterpolatePixel,              /* Triangular mesh interpolation */
+    NearestNeighborInterpolatePixel,   /* Nearest neighbour only */
+    SplineInterpolatePixel,            /* Cubic Spline (blurred) interpolation */
+    Average9InterpolatePixel,          /* Average 9 nearest neighbours */
+    Average16InterpolatePixel,         /* Average 16 nearest neighbours */
+    BlendInterpolatePixel,             /* blend of nearest 1, 2 or 4 pixels */
+    BackgroundInterpolatePixel,        /* just return background color */
+    CatromInterpolatePixel,            /* Catmull-Rom interpolation */
+    ...
+} InterpolatePixelMethod;
+
+typedef enum {
+    PixelRed,
+    PixelCyan,
+    PixelGray,
+    PixelY,
+    PixelGreen,
+    PixelMagenta,
+    PixelCb,
+    PixelBlue,
+    PixelYellow,
+    PixelCr,
+    PixelAlpha,
+    PixelBlack,
+    PixelIndex,
+    MaskPixelComponent,
+    ...
+} PixelComponent;
+
+typedef enum {
+    UndefinedPixelIntensityMethod,
+    AveragePixelIntensityMethod,
+    BrightnessPixelIntensityMethod,
+    LightnessPixelIntensityMethod,
+    Rec601LumaPixelIntensityMethod,
+    Rec601LuminancePixelIntensityMethod,
+    Rec709LumaPixelIntensityMethod,
+    Rec709LuminancePixelIntensityMethod,
+    RMSPixelIntensityMethod,
+    MSPixelIntensityMethod,
+    ...
+} PixelIntensityMethod;
+
+typedef struct {
+    double red;
+    double green;
+    double blue;
+    double opacity;
+    double index;
+} DoublePixelPacket;
+
+typedef struct {
+    unsigned int red;
+    unsigned int green;
+    unsigned int blue;
+    unsigned int opacity;
+    unsigned int index;
+} LongPixelPacket;
+
+typedef struct {
+    //ClassType storage_class;
+    //ColorspaceType colorspace;
+    MagickBooleanType matte;
+    double fuzz;
+    size_t depth;
+
+    MagickRealType red;
+    MagickRealType green;
+    MagickRealType blue;
+    MagickRealType opacity;
+    MagickRealType index;
+    ...;
+} MagickPixelPacket;
+
+// XXX quantum isn't defined
+//typedef Quantum IndexPacket;
+
+typedef struct {
+    /*
+    Quantum red;
+    Quantum green;
+    Quantum blue;
+    Quantum opacity;
+    */
+    ...;
+} PixelPacket;
+
+typedef struct {
+    /*
+    Quantum red;
+    Quantum green;
+    Quantum blue;
+    Quantum opacity;
+    Quantum index;
+    */
+    ...;
+} QuantumPixelPacket;
+
+MagickPixelPacket *CloneMagickPixelPacket(const MagickPixelPacket *);
+MagickRealType DecodePixelGamma(const MagickRealType);
+MagickRealType EncodePixelGamma(const MagickRealType);
+//MagickBooleanType ExportImagePixels(const Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, void *, ExceptionInfo *);
+void GetMagickPixelPacket(const Image *, MagickPixelPacket *);
+MagickRealType GetPixelIntensity(const Image *image, const PixelPacket *);
+//MagickBooleanType ImportImagePixels(Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, const void *);
+MagickBooleanType InterpolateMagickPixelPacket(const Image *, const CacheView *, const InterpolatePixelMethod, const double, const double, MagickPixelPacket *, ExceptionInfo *);
 
 
 // =============================================================================
