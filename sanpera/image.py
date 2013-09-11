@@ -26,6 +26,9 @@ def magick_try(ptr=None):
     yield ctx
     ctx.check_self()
 
+def check_magick_exception(ptr):
+    MagickExceptionContext(ptr).check_self()
+
 class MagickExceptionContext(object):
     def __init__(self, ptr=None):
         if ptr is None:
@@ -203,11 +206,8 @@ class Image(object):
     @classmethod
     def read(cls, filename):
         with open(filename, "rb") as fh:
-            fd = fh.fileno()
-            fileptr = lib.fdopen(fd, b"r")
-
             image_info = blank_image_info()
-            image_info.file = fileptr
+            image_info.file = ffi.cast("FILE *", fh)
 
             with magick_try() as exc:
                 ptr = ffi.gc(
@@ -299,7 +299,7 @@ class Image(object):
 
         with open(filename, "wb") as fh:
             image_info = blank_image_info()
-            image_info.file = fh
+            image_info.file = ffi.cast("FILE *", fh)
 
             # Force writing to a single file
             image_info.adjoin = lib.MagickTrue
@@ -585,3 +585,52 @@ class Image(object):
             lib.OptimizeImageTransparency(new_image, exc.ptr)
 
         return type(self)(new_image)
+
+
+# TODO this should probably not live in cython
+class BuiltinRegistry(object):
+    # XXX possibly spruce this up a bit to work better with other kinds of
+    # builtin enumerables
+
+    @classmethod
+    def create(cls, *names):
+        def decorator(f):
+            obj = cls(f, names)
+            obj.__doc__ = f.__doc__
+            return obj
+        return decorator
+
+    def __init__(self, factory, names):
+        self._factory = factory
+        self._names = frozenset(names)
+
+    def __getattr__(self, key):
+        if key not in self._names:
+            raise AttributeError
+
+        return self._factory(key)
+
+    def __iter__(self):
+        return self._names
+
+# There is, conveniently, no way to get a list of built-in images or patterns
+# out of ImageMagick.  So, er, here are manual lists.
+@BuiltinRegistry.create('granite', 'logo', 'netscape', 'rose', 'wizard')
+def builtins(name):
+    return Image.from_magick('magick:' + name)
+
+@BuiltinRegistry.create(
+    'bricks', 'checkerboard', 'circles', 'crosshatch', 'crosshatch30',
+    'crosshatch45', 'fishscales',
+    'gray0', 'gray5', 'gray10', 'gray15', 'gray20', 'gray25', 'gray30',
+    'gray35', 'gray40', 'gray45', 'gray50', 'gray55', 'gray60', 'gray65',
+    'gray70', 'gray75', 'gray80', 'gray85', 'gray90', 'gray95', 'gray100',
+    'hexagons', 'horizontal', 'horizontal2', 'horizontal3', 'horizontalsaw',
+    'hs_bdiagonal', 'hs_cross', 'hs_diagcross', 'hs_fdiagonal',
+    'hs_horizontal', 'hs_vertical', 'left30', 'left45', 'leftshingle',
+    'octagons', 'right30', 'right45', 'rightshingle', 'smallfishscales',
+    'vertical', 'vertical2', 'vertical3', 'verticalbricks',
+    'verticalleftshingle', 'verticalrightshingle', 'verticalsaw',
+)
+def patterns(name):
+    return Image.from_magick('pattern:' + name)

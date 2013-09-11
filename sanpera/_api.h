@@ -1,3 +1,4 @@
+// TODO comment out stuff that doesn't exist in older ImageMagick
 // =============================================================================
 // -----------------------------------------------------------------------------
 // stdlib
@@ -34,9 +35,6 @@ typedef struct {
     ...;
 } ExceptionInfo;
 
-// constitute.h
-Image *ReadImage(const ImageInfo *, ExceptionInfo *);
-
 // exception.h
 ExceptionInfo *AcquireExceptionInfo(void);
 ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
@@ -46,6 +44,11 @@ ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
 // =============================================================================
 // core types
 // -----------------------------------------------------------------------------
+// MagickCore.h
+
+static const int MaxTextExtent;
+
+// -----------------------------------------------------------------------------
 // magick-type.h
 
 // actually macros, but cffi figures it out
@@ -54,6 +57,36 @@ static float const QuantumRange;
 static char *const QuantumFormat;
 
 typedef ... MagickRealType;
+
+
+typedef enum {
+    UndefinedChannel,
+    RedChannel,
+    GrayChannel,
+    CyanChannel,
+    GreenChannel,
+    MagentaChannel,
+    BlueChannel,
+    YellowChannel,
+    AlphaChannel,
+    OpacityChannel,
+    BlackChannel,
+    IndexChannel,
+    CompositeChannels,
+    AllChannels,
+    TrueAlphaChannel, /* extract actual alpha channel from opacity */
+    RGBChannels,      /* set alpha from  grayscale mask in RGB */
+    GrayChannels,
+    SyncChannels,     /* channels should be modified equally */
+    DefaultChannels,
+    ...
+} ChannelType;
+
+typedef enum {
+    UndefinedClass,
+    DirectClass,
+    PseudoClass
+} ClassType;
 
 typedef enum {
     MagickFalse = 0,
@@ -65,6 +98,12 @@ typedef enum {
 // TODO forward decls actually go here
 
 
+// -----------------------------------------------------------------------------
+// memory_.h
+
+void RelinquishMagickMemory(void *);
+
+
 // =============================================================================
 // the important stuff
 // -----------------------------------------------------------------------------
@@ -73,6 +112,18 @@ typedef enum {
 // TODO some defines for opacity up here
 
 typedef enum {
+    UndefinedAlphaChannel,
+    ActivateAlphaChannel,
+    BackgroundAlphaChannel,
+    CopyAlphaChannel,
+    DeactivateAlphaChannel,
+    ExtractAlphaChannel,
+    OpaqueAlphaChannel,
+    SetAlphaChannel,
+    ShapeAlphaChannel,
+    TransparentAlphaChannel,
+    FlattenAlphaChannel,
+    RemoveAlphaChannel,
     ...
 } AlphaChannelType;
 
@@ -111,17 +162,26 @@ typedef enum {
 
 struct _Image {
 
+    MagickBooleanType matte;
+
     size_t columns;
     size_t rows;
+    size_t depth;
+    size_t colors;
 
     RectangleInfo page;
 
     char magick[];
     char filename[];
+
+    ExceptionInfo exception;
+
     ...;
 };
 
 struct _ImageInfo {
+
+    MagickBooleanType adjoin;
 
     FILE *file;
 
@@ -136,7 +196,6 @@ ImageInfo *CloneImageInfo(const ImageInfo *);
 ImageInfo *DestroyImageInfo(ImageInfo *);
 Image *ReferenceImage(Image *);
 Image *DestroyImage(Image *);
-
 
 
 // -----------------------------------------------------------------------------
@@ -158,13 +217,13 @@ Image *GetLastImageInList(const Image *);
 Image *GetNextImageInList(const Image *);
 Image *GetPreviousImageInList(const Image *);
 Image **ImageListToArray(const Image *, ExceptionInfo *);
-void InsertImageInList(Image **,Image *);
+void InsertImageInList(Image **, Image *);
 Image *NewImageList();
-void PrependImageToList(Image **,Image *);
+void PrependImageToList(Image **, Image *);
 Image *RemoveImageFromList(Image **);
 Image *RemoveLastImageFromList(Image **);
 Image *RemoveFirstImageFromList(Image **);
-void ReplaceImageInList(Image **,Image *);
+void ReplaceImageInList(Image **, Image *);
 void ReplaceImageInListReturnLast(Image **, Image *);
 void ReverseImageList(Image **);
 Image *SpliceImageIntoList(Image **, const size_t, const Image *);
@@ -172,6 +231,20 @@ Image *SplitImageList(Image *);
 void SyncImageList(Image *);
 Image *SyncNextImageInList(const Image *);
 
+
+// =============================================================================
+// whole-image manipulation
+// -----------------------------------------------------------------------------
+// channel.h
+
+Image *CombineImages(const Image *, const ChannelType, ExceptionInfo *);
+//Image *SeparateImage(const Image *, const ChannelType, ExceptionInfo *);
+//Image *SeparateImages(const Image *, const ChannelType, ExceptionInfo *);
+
+
+MagickBooleanType GetImageAlphaChannel(const Image *);
+//MagickBooleanType SeparateImageChannel(Image *, const ChannelType);
+MagickBooleanType SetImageAlphaChannel(Image *, const AlphaChannelType);
 
 // -----------------------------------------------------------------------------
 // resample.h
@@ -250,3 +323,75 @@ MagickBooleanType TransformImages(Image **, const char *, const char *);
 Image *TransposeImage(const Image *, ExceptionInfo *);
 Image *TransverseImage(const Image *, ExceptionInfo *);
 Image *TrimImage(const Image *, ExceptionInfo *);
+
+
+// =============================================================================
+// i/o
+// -----------------------------------------------------------------------------
+// stream.h
+// (done)
+
+typedef size_t (*StreamHandler)(const Image *, const void *, const size_t);
+
+Image *ReadStream(const ImageInfo *, StreamHandler, ExceptionInfo *);
+MagickBooleanType WriteStream(const ImageInfo *, Image *, StreamHandler);
+
+
+// -----------------------------------------------------------------------------
+// blob.h
+// (done)
+
+static const int MagickMaxBufferExtent;
+
+typedef enum {
+    ReadMode,
+    WriteMode,
+    IOMode
+} MapMode;
+
+MagickBooleanType BlobToFile(char *, const void *, const size_t, ExceptionInfo *);
+Image *BlobToImage(const ImageInfo *, const void *, const size_t, ExceptionInfo *);
+void DestroyBlob(Image *);
+void DuplicateBlob(Image *, const Image *);
+unsigned char *FileToBlob(const char *, const size_t, size_t *, ExceptionInfo *);
+MagickBooleanType FileToImage(Image *, const char *);
+MagickBooleanType GetBlobError(const Image *);
+FILE *GetBlobFileHandle(const Image *);
+//MagickSizeType GetBlobSize(const Image *);
+unsigned char *GetBlobStreamData(const Image *);
+StreamHandler GetBlobStreamHandler(const Image *);
+unsigned char *ImageToBlob(const ImageInfo *, Image *, size_t *, ExceptionInfo *);
+MagickBooleanType ImageToFile(Image *, char *, ExceptionInfo *);
+unsigned char *ImagesToBlob(const ImageInfo *, Image *, size_t *, ExceptionInfo *);
+MagickBooleanType InjectImageBlob(const ImageInfo *, Image *, Image *, const char *, ExceptionInfo *);
+MagickBooleanType IsBlobExempt(const Image *);
+MagickBooleanType IsBlobSeekable(const Image *);
+MagickBooleanType IsBlobTemporary(const Image *);
+Image *PingBlob(const ImageInfo *, const void *, const size_t, ExceptionInfo *);
+void SetBlobExempt(Image *, const MagickBooleanType);
+
+
+// -----------------------------------------------------------------------------
+// constitute.h
+
+typedef enum {
+    UndefinedPixel,
+    CharPixel,
+    DoublePixel,
+    FloatPixel,
+    IntegerPixel,
+    LongPixel,
+    QuantumPixel,
+    ShortPixel
+} StorageType;
+
+MagickBooleanType ConstituteComponentGenesis();
+void ConstituteComponentTerminus();
+Image *ConstituteImage(const size_t, const size_t, const char *, const StorageType, const void *, ExceptionInfo *);
+Image *PingImage(const ImageInfo *, ExceptionInfo *);
+Image *PingImages(const ImageInfo *, ExceptionInfo *);
+Image *ReadImage(const ImageInfo *, ExceptionInfo *);
+Image *ReadImages(const ImageInfo *, ExceptionInfo *);
+Image *ReadInlineImage(const ImageInfo *, const char *, ExceptionInfo *);
+MagickBooleanType WriteImage(const ImageInfo *, Image *);
+MagickBooleanType WriteImages(const ImageInfo *, Image *, const char *, ExceptionInfo *);
