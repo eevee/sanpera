@@ -1,9 +1,11 @@
 """ImageMagick API bindings, for cffi."""
 
+import atexit
 import os.path
 import shlex
 import subprocess
 from subprocess import CalledProcessError
+import sys
 
 import cffi
 
@@ -75,3 +77,15 @@ with open(os.path.join(here, '_api.c')) as f_stub:
     lib = ffi.verify(
         f_stub.read(),
         **extension_kwargs)
+
+# ImageMagick initialization
+lib.MagickCoreGenesis(sys.argv[0], lib.MagickFalse)
+
+# Teardown
+atexit.register(lib.MagickCoreTerminus)
+
+# Disable the default warning/error behavior, which is to spew garbage to
+# stderr (how considerate)
+lib.SetWarningHandler(ffi.NULL)
+lib.SetErrorHandler(ffi.NULL)
+lib.SetFatalErrorHandler(ffi.NULL)

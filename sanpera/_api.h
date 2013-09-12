@@ -94,6 +94,13 @@ typedef enum {
 
 
 // -----------------------------------------------------------------------------
+// magick.h
+
+void MagickCoreGenesis(const char *, const MagickBooleanType);
+void MagickCoreTerminus();
+
+
+// -----------------------------------------------------------------------------
 // memory_.h
 
 void RelinquishMagickMemory(void *);
@@ -183,10 +190,15 @@ typedef struct {
     ...;
 } ExceptionInfo;
 
-// exception.h
+typedef void (*ErrorHandler)(const ExceptionType, const char *, const char *);
+typedef void (*FatalErrorHandler)(const ExceptionType, const char *, const char *);
+typedef void (*WarningHandler)(const ExceptionType, const char *, const char *);
+
 ExceptionInfo *AcquireExceptionInfo(void);
 ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
-
+FatalErrorHandler SetFatalErrorHandler(FatalErrorHandler);
+ErrorHandler SetErrorHandler(ErrorHandler);
+WarningHandler SetWarningHandler(WarningHandler);
 
 // =============================================================================
 // the important stuff
