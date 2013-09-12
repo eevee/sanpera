@@ -4,54 +4,24 @@ from __future__ import division
 from sanpera._api import ffi, lib
 
 from sanpera.color import RGBColor
+from sanpera.exception import EmptyImageError
+from sanpera.exception import MissingFormatError
+from sanpera.exception import magick_raise
+from sanpera.exception import magick_try
 from sanpera.geometry import Rectangle
 from sanpera.geometry import Size
+from sanpera.pixel_view import PixelView
 
 def blank_image_info():
     return ffi.gc(
         lib.CloneImageInfo(ffi.NULL),
         lib.DestroyImageInfo)
 
+
 def blank_magick_pixel():
     magick_pixel = ffi.new("MagickPixelPacket *")
     lib.GetMagickPixelPacket(ffi.NULL, magick_pixel)
     return magick_pixel
-
-
-
-from contextlib import contextmanager
-@contextmanager
-def magick_try(ptr=None):
-    ctx = MagickExceptionContext(ptr)
-    yield ctx
-    ctx.check_self()
-
-def check_magick_exception(ptr):
-    MagickExceptionContext(ptr).check_self()
-
-class MagickExceptionContext(object):
-    def __init__(self, ptr=None):
-        if ptr is None:
-            self.ptr = ffi.gc(
-                lib.AcquireExceptionInfo(),
-                lib.DestroyExceptionInfo)
-        else:
-            self.ptr = ptr
-            self.check_self()
-
-    def check(self, condition):
-        if not condition:
-            return
-
-        raise RuntimeError
-
-    def check_self(self):
-        if self.ptr.severity == lib.UndefinedException:
-            return
-
-        raise RuntimeError
-
-    #def _examine_magick_exception
 
 
 class ImageFrame(object):
@@ -119,7 +89,7 @@ class ImageFrame(object):
             # Disable it
             lib.SetImageAlphaChannel(self._frame, lib.DeactivateAlphaChannel)
 
-        check_magick_exception(self._frame.exception)
+        magick_raise(self._frame.exception)
 
     ### Pixel access
 
@@ -137,7 +107,7 @@ class ImageFrame(object):
 
         # TODO this returns a bool?
         lib.TextureImage(new._stack, self._frame)
-        check_magick_exception(self._frame.exception)
+        magick_raise(self._frame.exception)
 
         return new
 
@@ -199,7 +169,7 @@ class Image(object):
         ptr = ffi.gc(
             lib.NewMagickImage(image_info, size.width, size.height, magick_pixel),
             lib.DestroyImageList)
-        check_magick_exception(ptr.exception)
+        magick_raise(ptr.exception)
 
         return cls(ptr)
 
@@ -229,8 +199,6 @@ class Image(object):
     @classmethod
     def from_buffer(cls, buf):
         assert isinstance(buf, bytes)
-
-        self = cls()
 
         image_info = blank_image_info()
         with magick_try() as exc:
@@ -315,7 +283,7 @@ class Image(object):
             # TODO detect format from filename if explicitly asked to do so
 
             lib.WriteImage(image_info, self._stack)
-            check_magick_exception(self._stack.exception)
+            magick_raise(self._stack.exception)
 
     def to_buffer(self, format=None):
         if self._stack == ffi.NULL:
@@ -330,7 +298,7 @@ class Image(object):
         # Stupid hack to fix a bug in the rgb codec
         if format == 'rgba' and not self._stack.matte:
             lib.SetImageAlphaChannel(self._stack, lib.OpaqueAlphaChannel)
-            check_magick_exception(self._stack.exception)
+            magick_raise(self._stack.exception)
 
         if format:
             # If the caller provided an explicit format, pass it along

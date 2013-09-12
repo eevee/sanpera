@@ -27,21 +27,6 @@ typedef struct {
     ssize_t y;
 } RectangleInfo;
 
-typedef enum {
-    UndefinedException,
-    ...
-} ExceptionType;
-
-typedef struct {
-    ExceptionType severity;
-    ...;
-} ExceptionInfo;
-
-// exception.h
-ExceptionInfo *AcquireExceptionInfo(void);
-ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
-
-
 
 // =============================================================================
 // core types
@@ -61,6 +46,13 @@ static char *const QuantumFormat;
 // XXX not right, not right at all
 typedef float MagickRealType;
 
+typedef unsigned int MagickStatusType;
+
+// Quantum is a plain numeric type, but varies in size depending on build
+typedef ... Quantum;
+
+// XXX this also varies in size, sigh
+typedef unsigned long long MagickSizeType;
 
 typedef enum {
     UndefinedChannel,
@@ -105,6 +97,95 @@ typedef enum {
 // memory_.h
 
 void RelinquishMagickMemory(void *);
+
+
+// -----------------------------------------------------------------------------
+// exception.h
+
+typedef enum {
+    UndefinedException,
+    WarningException,
+    ResourceLimitWarning,
+    TypeWarning,
+    OptionWarning,
+    DelegateWarning,
+    MissingDelegateWarning,
+    CorruptImageWarning,
+    FileOpenWarning,
+    BlobWarning,
+    StreamWarning,
+    CacheWarning,
+    CoderWarning,
+    FilterWarning,
+    ModuleWarning,
+    DrawWarning,
+    ImageWarning,
+    WandWarning,
+    RandomWarning,
+    XServerWarning,
+    MonitorWarning,
+    RegistryWarning,
+    ConfigureWarning,
+    PolicyWarning,
+    ErrorException,
+    ResourceLimitError,
+    TypeError,
+    OptionError,
+    DelegateError,
+    MissingDelegateError,
+    CorruptImageError,
+    FileOpenError,
+    BlobError,
+    StreamError,
+    CacheError,
+    CoderError,
+    FilterError,
+    ModuleError,
+    DrawError,
+    ImageError,
+    WandError,
+    RandomError,
+    XServerError,
+    MonitorError,
+    RegistryError,
+    ConfigureError,
+    PolicyError,
+    FatalErrorException,
+    ResourceLimitFatalError,
+    TypeFatalError,
+    OptionFatalError,
+    DelegateFatalError,
+    MissingDelegateFatalError,
+    CorruptImageFatalError,
+    FileOpenFatalError,
+    BlobFatalError,
+    StreamFatalError,
+    CacheFatalError,
+    CoderFatalError,
+    FilterFatalError,
+    ModuleFatalError,
+    DrawFatalError,
+    ImageFatalError,
+    WandFatalError,
+    RandomFatalError,
+    XServerFatalError,
+    MonitorFatalError,
+    RegistryFatalError,
+    ConfigureFatalError,
+    PolicyFatalError,
+    ...
+} ExceptionType;
+
+typedef struct {
+    ExceptionType severity;
+
+    char *reason;
+    ...;
+} ExceptionInfo;
+
+// exception.h
+ExceptionInfo *AcquireExceptionInfo(void);
+ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
 
 
 // =============================================================================
@@ -322,27 +403,15 @@ typedef struct {
     ...;
 } MagickPixelPacket;
 
-// XXX quantum isn't defined
-//typedef Quantum IndexPacket;
+// Quantum is of varying size, which cffi cannot handle.  _api.c contains some
+// helpers for dealing with this.
+typedef Quantum IndexPacket;
 
 typedef struct {
-    /*
-    Quantum red;
-    Quantum green;
-    Quantum blue;
-    Quantum opacity;
-    */
     ...;
 } PixelPacket;
 
 typedef struct {
-    /*
-    Quantum red;
-    Quantum green;
-    Quantum blue;
-    Quantum opacity;
-    Quantum index;
-    */
     ...;
 } QuantumPixelPacket;
 
@@ -354,6 +423,122 @@ void GetMagickPixelPacket(const Image *, MagickPixelPacket *);
 MagickRealType GetPixelIntensity(const Image *image, const PixelPacket *);
 //MagickBooleanType ImportImagePixels(Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, const void *);
 MagickBooleanType InterpolateMagickPixelPacket(const Image *, const CacheView *, const InterpolatePixelMethod, const double, const double, MagickPixelPacket *, ExceptionInfo *);
+
+
+// =============================================================================
+// color
+// -----------------------------------------------------------------------------
+// colorspace.h
+// (done)
+
+typedef enum {
+  UndefinedColorspace,
+  RGBColorspace,            /* Linear RGB colorspace */
+  GRAYColorspace,           /* greyscale (linear) image (faked 1 channel) */
+  TransparentColorspace,
+  OHTAColorspace,
+  LabColorspace,
+  XYZColorspace,
+  YCbCrColorspace,
+  YCCColorspace,
+  YIQColorspace,
+  YPbPrColorspace,
+  YUVColorspace,
+  CMYKColorspace,           /* negared linear RGB with black separated */
+  sRGBColorspace,           /* Default: non-lienar sRGB colorspace */
+  HSBColorspace,
+  HSLColorspace,
+  HWBColorspace,
+  Rec601LumaColorspace,
+  Rec601YCbCrColorspace,
+  Rec709LumaColorspace,
+  Rec709YCbCrColorspace,
+  LogColorspace,
+  CMYColorspace,            /* negated linear RGB colorspace */
+  LuvColorspace,
+  HCLColorspace,
+  LCHColorspace,            /* alias for LCHuv */
+  LMSColorspace,
+  LCHabColorspace,          /* Cylindrical (Polar) Lab */
+  LCHuvColorspace,          /* Cylindrical (Polar) Luv */
+  scRGBColorspace,
+  HSIColorspace,
+  HSVColorspace,            /* alias for HSB */
+  HCLpColorspace,
+  YDbDrColorspace
+} ColorspaceType;
+
+MagickBooleanType RGBTransformImage(Image *, const ColorspaceType);
+MagickBooleanType SetImageColorspace(Image *, const ColorspaceType);
+MagickBooleanType TransformImageColorspace(Image *, const ColorspaceType);
+MagickBooleanType TransformRGBImage(Image *, const ColorspaceType);
+
+
+// -----------------------------------------------------------------------------
+// color.h
+// (not done)
+
+MagickBooleanType QueryColorDatabase(const char *, PixelPacket *, ExceptionInfo *);
+
+
+// -----------------------------------------------------------------------------
+// cache-view.h
+// (done)
+
+typedef enum {
+  UndefinedVirtualPixelMethod,
+  BackgroundVirtualPixelMethod,
+  ConstantVirtualPixelMethod,  /* deprecated */
+  DitherVirtualPixelMethod,
+  EdgeVirtualPixelMethod,
+  MirrorVirtualPixelMethod,
+  RandomVirtualPixelMethod,
+  TileVirtualPixelMethod,
+  TransparentVirtualPixelMethod,
+  MaskVirtualPixelMethod,
+  BlackVirtualPixelMethod,
+  GrayVirtualPixelMethod,
+  WhiteVirtualPixelMethod,
+  HorizontalTileVirtualPixelMethod,
+  VerticalTileVirtualPixelMethod,
+  HorizontalTileEdgeVirtualPixelMethod,
+  VerticalTileEdgeVirtualPixelMethod,
+  CheckerTileVirtualPixelMethod
+} VirtualPixelMethod;
+
+CacheView *AcquireAuthenticCacheView(const Image *, ExceptionInfo *);
+CacheView *AcquireCacheView(const Image *);
+CacheView *AcquireVirtualCacheView(const Image *, ExceptionInfo *);
+CacheView *CloneCacheView(const CacheView *);
+CacheView *DestroyCacheView(CacheView *);
+
+ClassType GetCacheViewStorageClass(const CacheView *);
+
+ColorspaceType GetCacheViewColorspace(const CacheView *);
+
+//const IndexPacket *GetCacheViewVirtualIndexQueue(const CacheView *);
+
+PixelPacket *GetCacheViewVirtualPixels(const CacheView *, const ssize_t, const ssize_t, const size_t, const size_t, ExceptionInfo *);
+PixelPacket *GetCacheViewVirtualPixelQueue(const CacheView *);
+
+ExceptionInfo *GetCacheViewException(const CacheView *);
+
+//IndexPacket *GetCacheViewAuthenticIndexQueue(CacheView *);
+
+MagickBooleanType GetOneCacheViewVirtualPixel(const CacheView *, const ssize_t, const ssize_t, PixelPacket *, ExceptionInfo *);
+MagickBooleanType GetOneCacheViewVirtualMethodPixel(const CacheView *, const VirtualPixelMethod, const ssize_t, const ssize_t, PixelPacket *, ExceptionInfo *);
+MagickBooleanType GetOneCacheViewAuthenticPixel(const CacheView *, const ssize_t, const ssize_t, PixelPacket *, ExceptionInfo *);
+MagickBooleanType SetCacheViewStorageClass(CacheView *, const ClassType);
+MagickBooleanType SetCacheViewVirtualPixelMethod(CacheView *, const VirtualPixelMethod);
+MagickBooleanType SyncCacheViewAuthenticPixels(CacheView *, ExceptionInfo *);
+
+MagickSizeType GetCacheViewExtent(const CacheView *);
+
+size_t GetCacheViewChannels(const CacheView *);
+
+PixelPacket *GetCacheViewAuthenticPixelQueue(CacheView *);
+PixelPacket *GetCacheViewAuthenticPixels(CacheView *, const ssize_t, const ssize_t, const size_t, const size_t, ExceptionInfo *);
+PixelPacket *QueueCacheViewAuthenticPixels(CacheView *, const ssize_t, const ssize_t, const size_t, const size_t, ExceptionInfo *);
 
 
 // =============================================================================
@@ -519,3 +704,10 @@ Image *ReadImages(const ImageInfo *, ExceptionInfo *);
 Image *ReadInlineImage(const ImageInfo *, const char *, ExceptionInfo *);
 MagickBooleanType WriteImage(const ImageInfo *, Image *);
 MagickBooleanType WriteImages(const ImageInfo *, Image *, const char *, ExceptionInfo *);
+
+
+// =============================================================================
+// custom non-imagemagick stuff implemented in _api.c
+
+void sanpera_pixel_to_doubles(PixelPacket *, double[]);
+void sanpera_pixel_from_doubles(PixelPacket *, double[]);
