@@ -9,6 +9,13 @@ from sanpera.exception import magick_try
 #  0 ----- 1 ----- 2 ----- 3
 # 0.0                     1.0
 
+def _clamp(ch):
+    if ch < 0:
+        return 0.
+    if ch > 1:
+        return 1.
+    return ch
+
 
 # TODO: handle more colorspaces, and arbitrary extra channels.
 class BaseColor(object):
@@ -242,8 +249,11 @@ class RGBColor(BaseColor):
         return self.__mul__(factor)
 
     def clamped(self):
-        # TODO is this even useful any more
-        raise NotImplementedError
+        return RGBColor(
+            _clamp(self._red),
+            _clamp(self._green),
+            _clamp(self._blue),
+            _clamp(self._opacity))
         # TODO every color type
         # TODO extra channels (clamp them??)
 

@@ -244,134 +244,6 @@ void MagickCoreTerminus();
 
 
 // =============================================================================
-// the important stuff
-// -----------------------------------------------------------------------------
-// image.h
-
-// TODO some defines for opacity up here
-
-typedef enum {
-    UndefinedAlphaChannel,
-    ActivateAlphaChannel,
-    BackgroundAlphaChannel,
-    CopyAlphaChannel,
-    DeactivateAlphaChannel,
-    ExtractAlphaChannel,
-    OpaqueAlphaChannel,
-    SetAlphaChannel,
-    ShapeAlphaChannel,
-    TransparentAlphaChannel,
-    FlattenAlphaChannel,
-    RemoveAlphaChannel,
-    ...
-} AlphaChannelType;
-
-typedef enum {
-    ...
-} ImageType;
-
-typedef enum {
-    ...
-} InterlaceType;
-
-typedef enum {
-    ...
-} OrientationType;
-
-typedef enum {
-    ...
-} ResolutionType;
-
-typedef enum {
-    ...
-} PrimaryInfo;
-
-typedef enum {
-    ...
-} SegmentInfo;
-
-typedef enum {
-    ...
-} TransmitType;
-
-typedef enum {
-    ...
-} ChromaticityInfo;
-
-
-struct _Image {
-
-    MagickBooleanType matte;
-
-    size_t columns;
-    size_t rows;
-    size_t depth;
-    size_t colors;
-
-    RectangleInfo page;
-
-    char magick[];
-    char filename[];
-
-    ExceptionInfo exception;
-
-    ...;
-};
-
-struct _ImageInfo {
-
-    MagickBooleanType adjoin;
-
-    FILE *file;
-
-    char magick[];
-    char filename[];
-    ...;
-};
-
-
-ImageInfo *AcquireImageInfo();
-ImageInfo *CloneImageInfo(const ImageInfo *);
-ImageInfo *DestroyImageInfo(ImageInfo *);
-Image *ReferenceImage(Image *);
-Image *DestroyImage(Image *);
-
-
-// -----------------------------------------------------------------------------
-// list.h
-// (done)
-
-void AppendImageToList(Image **, const Image *);
-Image *CloneImageList(const Image *, ExceptionInfo *);
-Image *CloneImages(const Image *, const char *, ExceptionInfo *);
-void DeleteImageFromList(Image **);
-void DeleteImages(Image **,const char *, ExceptionInfo *);
-Image *DestroyImageList(Image *);
-Image *DuplicateImages(Image *, const size_t, const char *, ExceptionInfo *);
-Image *GetFirstImageInList(const Image *);
-Image *GetImageFromList(const Image *, const ssize_t);
-ssize_t GetImageIndexInList(const Image *);
-size_t GetImageListLength(const Image *);
-Image *GetLastImageInList(const Image *);
-Image *GetNextImageInList(const Image *);
-Image *GetPreviousImageInList(const Image *);
-Image **ImageListToArray(const Image *, ExceptionInfo *);
-void InsertImageInList(Image **, Image *);
-Image *NewImageList();
-void PrependImageToList(Image **, Image *);
-Image *RemoveImageFromList(Image **);
-Image *RemoveLastImageFromList(Image **);
-Image *RemoveFirstImageFromList(Image **);
-void ReplaceImageInList(Image **, Image *);
-void ReplaceImageInListReturnLast(Image **, Image *);
-void ReverseImageList(Image **);
-Image *SpliceImageIntoList(Image **, const size_t, const Image *);
-Image *SplitImageList(Image *);
-void SyncImageList(Image *);
-Image *SyncNextImageInList(const Image *);
-
-
-// =============================================================================
 // pixel access
 // -----------------------------------------------------------------------------
 // pixel.h
@@ -478,6 +350,136 @@ void GetMagickPixelPacket(const Image *, MagickPixelPacket *);
 MagickRealType GetPixelIntensity(const Image *image, const PixelPacket *);
 //MagickBooleanType ImportImagePixels(Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, const void *);
 MagickBooleanType InterpolateMagickPixelPacket(const Image *, const CacheView *, const InterpolatePixelMethod, const double, const double, MagickPixelPacket *, ExceptionInfo *);
+
+
+// =============================================================================
+// the important stuff
+// -----------------------------------------------------------------------------
+// image.h
+
+// TODO some defines for opacity up here
+
+typedef enum {
+    UndefinedAlphaChannel,
+    ActivateAlphaChannel,
+    BackgroundAlphaChannel,
+    CopyAlphaChannel,
+    DeactivateAlphaChannel,
+    ExtractAlphaChannel,
+    OpaqueAlphaChannel,
+    SetAlphaChannel,
+    ShapeAlphaChannel,
+    TransparentAlphaChannel,
+    FlattenAlphaChannel,
+    RemoveAlphaChannel,
+    ...
+} AlphaChannelType;
+
+typedef enum {
+    ...
+} ImageType;
+
+typedef enum {
+    ...
+} InterlaceType;
+
+typedef enum {
+    ...
+} OrientationType;
+
+typedef enum {
+    ...
+} ResolutionType;
+
+typedef enum {
+    ...
+} PrimaryInfo;
+
+typedef enum {
+    ...
+} SegmentInfo;
+
+typedef enum {
+    ...
+} TransmitType;
+
+typedef enum {
+    ...
+} ChromaticityInfo;
+
+
+struct _Image {
+
+    MagickBooleanType matte;
+
+    size_t columns;
+    size_t rows;
+    size_t depth;
+    size_t colors;
+
+    RectangleInfo page;
+
+    char magick[];
+    char filename[];
+
+    ExceptionInfo exception;
+
+    ...;
+};
+
+struct _ImageInfo {
+
+    MagickBooleanType adjoin;
+
+    FILE *file;
+
+    char magick[];
+    char filename[];
+    ...;
+};
+
+
+ImageInfo *AcquireImageInfo();
+Image *CloneImage(const Image *, const size_t, const size_t, const MagickBooleanType, ExceptionInfo *);
+ImageInfo *CloneImageInfo(const ImageInfo *);
+ImageInfo *DestroyImageInfo(ImageInfo *);
+Image *NewMagickImage(const ImageInfo *, const size_t, const size_t, const MagickPixelPacket *);
+Image *ReferenceImage(Image *);
+Image *DestroyImage(Image *);
+
+
+// -----------------------------------------------------------------------------
+// list.h
+// (done)
+
+void AppendImageToList(Image **, const Image *);
+Image *CloneImageList(const Image *, ExceptionInfo *);
+Image *CloneImages(const Image *, const char *, ExceptionInfo *);
+void DeleteImageFromList(Image **);
+void DeleteImages(Image **,const char *, ExceptionInfo *);
+Image *DestroyImageList(Image *);
+Image *DuplicateImages(Image *, const size_t, const char *, ExceptionInfo *);
+Image *GetFirstImageInList(const Image *);
+Image *GetImageFromList(const Image *, const ssize_t);
+ssize_t GetImageIndexInList(const Image *);
+size_t GetImageListLength(const Image *);
+Image *GetLastImageInList(const Image *);
+Image *GetNextImageInList(const Image *);
+Image *GetPreviousImageInList(const Image *);
+Image **ImageListToArray(const Image *, ExceptionInfo *);
+void InsertImageInList(Image **, Image *);
+Image *NewImageList();
+void PrependImageToList(Image **, Image *);
+Image *RemoveImageFromList(Image **);
+Image *RemoveLastImageFromList(Image **);
+Image *RemoveFirstImageFromList(Image **);
+void ReplaceImageInList(Image **, Image *);
+void ReplaceImageInListReturnLast(Image **, Image *);
+void ReverseImageList(Image **);
+Image *SpliceImageIntoList(Image **, const size_t, const Image *);
+Image *SplitImageList(Image *);
+void SyncImageList(Image *);
+Image *SyncNextImageInList(const Image *);
 
 
 // =============================================================================
