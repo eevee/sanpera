@@ -51,7 +51,7 @@ class ColorizeFilter(BuiltinFilter):
 
         with magick_try() as exc:
             # TODO what if this raises but doesn't return NULL
-            return lib.ColorizeImage(frame, opacity, color, exc.ptr)
+            return lib.ColorizeImage(frame, opacity, color[0], exc.ptr)
 
 
 class FilterState(object):

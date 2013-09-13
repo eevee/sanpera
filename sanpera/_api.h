@@ -691,6 +691,27 @@ Image *TransverseImage(const Image *, ExceptionInfo *);
 Image *TrimImage(const Image *, ExceptionInfo *);
 
 
+// -----------------------------------------------------------------------------
+// composite.h
+// (not done)
+
+MagickBooleanType TextureImage(Image *, const Image *);
+
+
+// -----------------------------------------------------------------------------
+// fx.h
+// (not done)
+
+Image *ColorizeImage(const Image *, const char *, const PixelPacket, ExceptionInfo *);
+
+
+// -----------------------------------------------------------------------------
+// paint.h
+// (not done)
+
+MagickBooleanType OpaquePaintImage(Image *, const MagickPixelPacket *, const MagickPixelPacket *, const MagickBooleanType);
+
+
 // =============================================================================
 // i/o
 // -----------------------------------------------------------------------------

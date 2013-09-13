@@ -311,5 +311,10 @@ class HSLColor(BaseColor):
     def lightness(self):
         return self._lightness
 
+    def rgb(self):
+        r, g, b = colorsys.hls_to_rgb(self._hue, self._lightness, self._saturation)
+        # TODO extra channels
+        return RGBColor(r, g, b, self._opacity)
+
     def hsl(self):
         return self
