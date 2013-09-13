@@ -1,5 +1,7 @@
 from distutils.core import setup
 
+from sanpera._api import ffi
+
 setup(
     name='sanpera',
     version='0.2pre',
@@ -21,4 +23,6 @@ setup(
     requires=[
         'cffi',
     ],
+
+    ext_modules=[ffi.verifier.get_extension()],
 )

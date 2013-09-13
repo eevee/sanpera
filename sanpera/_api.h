@@ -575,8 +575,8 @@ ColorspaceType GetCacheViewColorspace(const CacheView *);
 
 //const IndexPacket *GetCacheViewVirtualIndexQueue(const CacheView *);
 
-PixelPacket *GetCacheViewVirtualPixels(const CacheView *, const ssize_t, const ssize_t, const size_t, const size_t, ExceptionInfo *);
-PixelPacket *GetCacheViewVirtualPixelQueue(const CacheView *);
+const PixelPacket *GetCacheViewVirtualPixels(const CacheView *, const ssize_t, const ssize_t, const size_t, const size_t, ExceptionInfo *);
+const PixelPacket *GetCacheViewVirtualPixelQueue(const CacheView *);
 
 ExceptionInfo *GetCacheViewException(const CacheView *);
 
