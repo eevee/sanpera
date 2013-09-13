@@ -503,11 +503,7 @@ class Image(object):
 
     def cropped(self, rect, preserve_canvas=False):
         # XXX turn this back into a Rectangle method once it's ported
-        rectinfo = ffi.new("RectangleInfo *")
-        rectinfo.x = rect.left
-        rectinfo.y = rect.top
-        rectinfo.width = rect.width
-        rectinfo.height = rect.height
+        rectinfo = rect.to_rect_info()
 
         p = self._stack
         new_stack_ptr = ffi.new("Image **", ffi.NULL)
