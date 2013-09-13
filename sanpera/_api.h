@@ -94,13 +94,6 @@ typedef enum {
 
 
 // -----------------------------------------------------------------------------
-// magick.h
-
-void MagickCoreGenesis(const char *, const MagickBooleanType);
-void MagickCoreTerminus();
-
-
-// -----------------------------------------------------------------------------
 // memory_.h
 
 void RelinquishMagickMemory(void *);
@@ -199,6 +192,56 @@ ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
 FatalErrorHandler SetFatalErrorHandler(FatalErrorHandler);
 ErrorHandler SetErrorHandler(ErrorHandler);
 WarningHandler SetWarningHandler(WarningHandler);
+
+
+// -----------------------------------------------------------------------------
+// magick.h
+
+typedef enum {
+    UndefinedFormatType,
+    ImplicitFormatType,
+    ExplicitFormatType,
+    ...
+} MagickFormatType;
+
+typedef enum {
+    NoThreadSupport,
+    DecoderThreadSupport,
+    EncoderThreadSupport,
+    ...
+} MagickThreadSupport;
+
+typedef Image *DecodeImageHandler(const ImageInfo *, ExceptionInfo *);
+typedef MagickBooleanType EncodeImageHandler(const ImageInfo *, Image *);
+typedef MagickBooleanType IsImageFormatHandler(const unsigned char *, const size_t);
+
+typedef struct {
+    char *name;
+    char *description;
+    char *version;
+    char *note;
+    char *module;
+
+    DecodeImageHandler *decoder;
+    EncodeImageHandler *encoder;
+    IsImageFormatHandler *magick;
+
+    MagickBooleanType adjoin;
+    MagickBooleanType raw;
+    MagickBooleanType endian_support;
+    MagickBooleanType blob_support;
+    MagickBooleanType seekable_stream;
+
+    //MagickFormatType format_type;
+    MagickStatusType thread_support;
+    MagickBooleanType stealth;
+    ...;
+} MagickInfo;
+
+const MagickInfo **GetMagickInfoList(const char *, size_t *, ExceptionInfo *);
+void MagickCoreGenesis(const char *, const MagickBooleanType);
+void MagickCoreTerminus();
+
 
 // =============================================================================
 // the important stuff
