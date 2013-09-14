@@ -196,8 +196,9 @@ class BaseColor(object):
 
     def _populate_magick_pixel(self, pixel):
         """Copy values to a MagickPixelPacket."""
-        # TODO implement, once i figure out whether MPP contains 0-1 or
-        # Quantum; it's typed as MagickRealType!
+        rgb = self.rgb()
+        array = ffi.new("double[]", [rgb._red, rgb._green, rgb._blue, rgb._opacity])
+        lib.sanpera_magick_pixel_from_doubles(pixel, array)
         # TODO extra channels?
 
 

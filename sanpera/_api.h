@@ -789,3 +789,5 @@ MagickBooleanType WriteImages(const ImageInfo *, Image *, const char *, Exceptio
 
 void sanpera_pixel_to_doubles(PixelPacket *, double[]);
 void sanpera_pixel_from_doubles(PixelPacket *, double[]);
+void sanpera_magick_pixel_to_doubles(MagickPixelPacket *, double[]);
+void sanpera_magick_pixel_from_doubles(MagickPixelPacket *, double[]);

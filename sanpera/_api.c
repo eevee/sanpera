@@ -26,3 +26,20 @@ void sanpera_pixel_from_doubles(PixelPacket *pixel, double in[static 4]) {
     // Distinct from "opacity", which treats 0 as opaque
     SetPixelAlpha(pixel, ClampToQuantum(in[3] * QuantumRange));
 }
+
+// Same story for MagickPixelPacket
+void sanpera_magick_pixel_to_doubles(MagickPixelPacket *pixel, double out[static 4]) {
+    out[0] = (double)(GetPixelRed(pixel)) / QuantumRange;
+    out[1] = (double)(GetPixelGreen(pixel)) / QuantumRange;
+    out[2] = (double)(GetPixelBlue(pixel)) / QuantumRange;
+    // Distinct from "opacity", which treats 0 as opaque
+    out[3] = (double)(GetPixelAlpha(pixel)) / QuantumRange;
+}
+
+void sanpera_magick_pixel_from_doubles(MagickPixelPacket *pixel, double in[static 4]) {
+    SetPixelRed(pixel, ClampToQuantum(in[0] * QuantumRange));
+    SetPixelGreen(pixel, ClampToQuantum(in[1] * QuantumRange));
+    SetPixelBlue(pixel, ClampToQuantum(in[2] * QuantumRange));
+    // Distinct from "opacity", which treats 0 as opaque
+    SetPixelAlpha(pixel, ClampToQuantum(in[3] * QuantumRange));
+}
