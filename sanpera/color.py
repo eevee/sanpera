@@ -180,7 +180,7 @@ class BaseColor(object):
 
     @classmethod
     def _from_pixel(cls, pixel):
-        """Populate ourselves from a PixelPacket."""
+        """Create a color from a PixelPacket."""
         array = ffi.new("double[]", 4)
         lib.sanpera_pixel_to_doubles(pixel, array)
 
@@ -189,7 +189,8 @@ class BaseColor(object):
 
     def _populate_pixel(self, pixel):
         """Copy values to a PixelPacket."""
-        array = ffi.new("double[]", [self._red, self._green, self._blue, self._opacity])
+        rgb = self.rgb()
+        array = ffi.new("double[]", [rgb._red, rgb._green, rgb._blue, rgb._opacity])
         lib.sanpera_pixel_from_doubles(pixel, array)
         # TODO extra channels?
 
@@ -318,3 +319,15 @@ class HSLColor(BaseColor):
 
     def hsl(self):
         return self
+
+
+class GrayColor(BaseColor):
+    def __init__(self, value, alpha=1.0):
+        self.value = value
+        self.alpha = alpha
+
+    def rgb(self):
+        return RGBColor(self.value, self.value, self.value, self.alpha)
+
+    def hsl(self):
+        return HSLColor(0, 0, self.value, self.alpha)
