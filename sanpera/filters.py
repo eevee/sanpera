@@ -1,11 +1,13 @@
-from cython.operator cimport preincrement as inc
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-from sanpera cimport c_api
-from sanpera.color cimport BaseColor, RGBColor, _color_from_pixel
-from sanpera.exception cimport MagickException, check_magick_exception
-from sanpera.image cimport Image, ImageFrame
-
-import sanpera.core
+from sanpera._api import ffi, lib
+from sanpera.color import BaseColor
+from sanpera.color import RGBColor
+from sanpera.exception import magick_try
+from sanpera.image import Image
+from sanpera.image import ImageFrame
 
 # ALRIGHT JACKASS let's sort this mess out.
 # PROBLEMS:
@@ -28,73 +30,55 @@ import sanpera.core
 # - apply a filter to multiple frames at once, accessed by index
 # -
 
-cdef class BuiltinFilter:
+class BuiltinFilter(object):
     """Exposes a filter that already has a fast C implementation."""
-    cdef c_api.Image* _implementation(self, c_api.Image* frame) except NULL:
+    def _implementation(self, frame):
         raise NotImplementedError
 
-cdef class ColorizeFilter(BuiltinFilter):
-    cdef RGBColor _color
-    cdef float _amount
 
-    def __init__(self, BaseColor color, float amount):
+class ColorizeFilter(BuiltinFilter):
+    def __init__(self, color, amount):
         self._color = color.rgb()
         self._amount = amount
 
-    cdef c_api.Image* _implementation(self, c_api.Image* frame) except NULL:
-        cdef c_api.Image* ret = NULL
-
+    def _implementation(self, frame):
         # This is incredibly stupid, but yes, ColorizeImage only accepts a
         # string for the opacity.
-        opacity = str(self._amount * 100.) + "%"
+        opacity = bytes(self._amount * 100.) + b"%"
 
-        cdef c_api.PixelPacket color
-        self._color._populate_pixel(&color)
+        color = ffi.new("PixelPacket *")
+        self._color._populate_pixel(color)
 
-        cdef MagickException exc = MagickException()
-
-        ret = c_api.ColorizeImage(frame, opacity, color, exc.ptr)
-        exc.check()
-
-        return ret
+        with magick_try() as exc:
+            # TODO what if this raises but doesn't return NULL
+            return lib.ColorizeImage(frame, opacity, color[0], exc.ptr)
 
 
-cdef class FilterState:
-    cdef BaseColor _color
-
-    property color:
-        def __get__(self):
-            return self._color
-
+class FilterState(object):
+    @property
+    def color(self):
+        return self._color
 
 
 def evaluate(filter_function, *frames):
+    # TODO any gc concerns in this?
     for f in frames:
-        <ImageFrame?> f
+        assert isinstance(f, ImageFrame)
 
     # XXX how to handle frames of different sizes?  gravity?  scaling?  first
     # frame as the master?  hm
+    frame = frames[0]
 
-    cdef ImageFrame frame = frames[0]
-    cdef MagickException exc = MagickException()
-    cdef Image result = Image()
-    cdef c_api.Image* new_frame
-
-    # TODO i am, shall we say, not enamored with this approach
-    cdef BuiltinFilter builtin
     if isinstance(filter_function, BuiltinFilter):
-        builtin = filter_function
-        new_frame = builtin._implementation(frame._frame)
-        c_api.AppendImageToList(&result._stack, new_frame)
-        result._post_init()
-        return result
-
+        new_stack = filter_function._implementation(frame._frame)
+        return Image(new_stack)
 
     # TODO does this create a blank image or actually duplicate the pixels??  docs say it actually copies with (0, 0) but the code just refs the same pixel cache?
     # TODO could use an inplace version for, e.g. the SVG-style compose operators
     # TODO also might want a different sized clone!
-    new_frame = c_api.CloneImage(frame._frame, 0, 0, c_api.MagickTrue, exc.ptr)
-    exc.check(new_frame == NULL)
+    with magick_try() as exc:
+        new_stack = lib.CloneImage(frame._frame, 0, 0, lib.MagickTrue, exc.ptr)
+        exc.check(new_stack == ffi.NULL)
 
     # TODO: set image to full-color.
     # TODO: work out how this works, how different colorspaces work, and waht the ImageType has to do with anything
@@ -105,27 +89,18 @@ def evaluate(filter_function, *frames):
     #      return((Image *) NULL);
     #    }
 
-    c_api.AppendImageToList(&result._stack, new_frame)
-
-    cdef c_api.CacheView* out_view = c_api.AcquireCacheView(result._stack)
+    out_view = lib.AcquireCacheView(new_stack)
 
     # TODO i need to be a list
-    cdef c_api.CacheView* in_view = c_api.AcquireCacheView(frame._frame)
+    in_view = lib.AcquireCacheView(frame._frame)
 
-    cdef int x
-    cdef int y
-
-    cdef c_api.PixelPacket* q
-
-    cdef RGBColor current_color
-    cdef RGBColor ret
-
-    cdef FilterState state = FilterState()
+    state = FilterState()
 
     for y in range(frame._frame.rows):
 
-        q = c_api.GetCacheViewAuthenticPixels(out_view, 0, y, frame._frame.columns, 1, exc.ptr)
-        # TODO check exception and q == NULL
+        with magick_try() as exc:
+            q = lib.GetCacheViewAuthenticPixels(out_view, 0, y, frame._frame.columns, 1, exc.ptr)
+            exc.check(q == ffi.NULL)
 
         # TODO is this useful who knows
         #fx_indexes=GetCacheViewAuthenticIndexQueue(fx_view);
@@ -139,7 +114,7 @@ def evaluate(filter_function, *frames):
 
             # Set up state object
             # TODO document that this is reused, or somethin
-            state._color = _color_from_pixel(q)
+            state._color = BaseColor._from_pixel(q)
             ret = filter_function(state)
 
             #q.red = c_api.RoundToQuantum(<c_api.MagickRealType> ret.c_struct.red * c_api.QuantumRange)
@@ -153,14 +128,13 @@ def evaluate(filter_function, *frames):
             #      SetPixelIndex(fx_indexes+x,RoundToQuantum((MagickRealType) QuantumRange*alpha));
             #    }
 
-            inc(q)
+            q += 1  # q++
 
-        c_api.SyncCacheViewAuthenticPixels(in_view, exc.ptr)
-        # TODO check exception, return value
+        with magick_try() as exc:
+            lib.SyncCacheViewAuthenticPixels(in_view, exc.ptr)
+            # TODO check exception, return value
 
     # XXX destroy in_view
     # XXX destroy out_view s
 
-    result._post_init()
-    return result
-
+    return Image(new_stack)

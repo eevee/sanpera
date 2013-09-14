@@ -2,55 +2,38 @@
 images.
 """
 from __future__ import division
-
-from cpython cimport bool
-
-from sanpera cimport c_api
-
+from collections import namedtuple
 import math
 
-cdef int approx_equal(float f1, float f2, float epsilon=1e-6):
+from sanpera._api import ffi, lib
+
+
+def approx_equal(f1, f2, epsilon=1e-6):
     return abs(f1 - f2) < epsilon
 
-cdef class Vector:
+
+class Vector(namedtuple('_Vector', ['x', 'y'])):
     """I'm a direction and magnitude in a two-dimensional plane, where the axes
     increase rightwards and down.  I can also represent a single point.
     """
-    #cdef int _x
-    #cdef int _y
+    __slots__ = ()
 
     ### Attribute access
 
-    property x:
-        def __get__(self):
-            return self._x
+    @property
+    def magnitude(self):
+        return math.hypot(self.x, self.y)
 
-    property y:
-        def __get__(self):
-            return self._y
-
-    property magnitude:
-        def __get__(self):
-            return math.hypot(self._x, self._y)
-
-    property direction:
-        def __get__(self):
-            # Remember: the y-axis is flipped
-            return math.atan2(- self._y, self._x)
+    @property
+    def direction(self):
+        # Remember: the y-axis is flipped
+        return math.atan2(- self.y, self.x)
 
 
     ### Construction
 
-    def __cinit__(self):
-        self._x = 0
-        self._y = 0
-
-    def __init__(self, int x, int y):
-        self._x = x
-        self._y = y
-
     @classmethod
-    def coerce(type cls, value):
+    def coerce(cls, value):
         """Turn a value into a `Vector`.  Existing `Vector` objects are
         returned unchanged; tuples of `(x, y)` are fed to the constructor.
         """
@@ -64,16 +47,14 @@ cdef class Vector:
 
     def __repr__(self):
         return "<{cls} x={x} y={y}>".format(
-            cls=self.__class__.__name__,
-            x=self._x,
-            y=self._y)
+            cls=type(self).__name__,
+            x=self.x,
+            y=self.y)
 
-    def __richcmp__(self, other, int op):
+    def __richcmp__(self, other, op):
         if not isinstance(self, Vector) or not isinstance(other, Vector):
             return NotImplemented
 
-        cdef Vector one = self
-        cdef Vector two = other
 
         lt = one._x < two._x and one._y < two._y
         eq = one._x == two._x and one._y == two._y
@@ -94,97 +75,69 @@ cdef class Vector:
 
         return NotImplemented
 
-    def __iter__(self):
-        """Unpacks into `(x, y)`."""
-        return iter((self._x, self._y))
-
     def __nonzero__(self):
         """Every `Vector` is truthy, except the zero vector."""
-        return self._x or self._y
+        return self.x or self.y
 
     def __add__(self, other):
-        cdef Vector one
-        cdef Vector two
-        cdef type cls
+        cls = type(self)
 
-        if isinstance(self, Vector):
-            one = self
-            pytwo = other
-        else:
-            one = other
-            pytwo = self
-        cls = one.__class__
+        if isinstance(other, int):
+            return cls(self.x + other, self.y + other)
 
-        if isinstance(pytwo, int):
-            return cls(one._x + pytwo, one._y + pytwo)
-        if isinstance(pytwo, Vector):
-            two = pytwo
-            return cls(one._x + two._x, one._y + two._y)
+        if isinstance(other, Vector):
+            return cls(self.x + two.x, self.y + two.y)
 
         return NotImplemented
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
     def __neg__(self):
-        return self.__class__(- self._x, - self._y)
+        return type(self)(- self.x, - self.y)
 
     def __sub__(self, other):
-        if isinstance(self, Vector):
-            return self + -other
-        else:
-            return -self + other
+        return self + -other
+
+    def __rsub__(self, other):
+        return -self + other
 
     def __mul__(self, other):
-        cdef Vector one
-        cdef Vector two
-        cdef type cls
+        cls = type(self)
 
-        if isinstance(self, Vector):
-            one = self
-            pytwo = other
-        else:
-            one = other
-            pytwo = self
-        cls = one.__class__
+        if isinstance(other, int):
+            return cls(self.x * other, self.y * other)
 
-        if isinstance(pytwo, int):
-            return cls(one._x * pytwo, one._y * pytwo)
-        if isinstance(pytwo, float):
-            return cls(int(one._x * pytwo + 0.5), int(one._y * pytwo + 0.5))
-        if isinstance(pytwo, Vector):
-            two = pytwo
-            return cls(one._x * two._x, one._y * two._y)
+        if isinstance(other, float):
+            return cls(int(self.x * other + 0.5), int(self.y * other + 0.5))
 
         return NotImplemented
 
-    ### Helpful math
 
-
-cdef class Size(Vector):
+class Size(Vector):
     """I represent the dimensions of some rectangular area.  I'm like a
     `Vector`, but my `x` and `y` must be positive.
 
     `width`, `height`, and `diagonal` are provided as aliases for `Vector`
     properties.
     """
+    __slots__ = ()
 
-    property width:
-        def __get__(self):
-            return self._x
+    @property
+    def width(self):
+        return self.x
 
-    property height:
-        def __get__(self):
-            return self._y
+    @property
+    def height(self):
+        return self.y
 
-    property diagonal:
-        def __get__(self):
-            return self.magnitude
+    @property
+    def diagonal(self):
+        return self.magnitude
 
-    property area:
-        def __get__(self):
-            return self._x * self._y
-
-
-    def __init__(self, unsigned int width, unsigned int height):
-        Vector.__init__(self, width, height)
+    @property
+    def area(self):
+        return self.x * self.y
 
 
     ### Special methods
@@ -192,12 +145,12 @@ cdef class Size(Vector):
     def __repr__(self):
         return "<{cls} width={width} height={height}>".format(
             cls=self.__class__.__name__,
-            width=self._x,
-            height=self._y)
+            width=self.x,
+            height=self.y)
 
     def __nonzero__(self):
         """Sizes are falsey if _either_ dimension is zero."""
-        return self._x and self._y
+        return self.x and self.y
 
     def __neg__(self):
         return NotImplemented
@@ -209,11 +162,10 @@ cdef class Size(Vector):
         """Return a `Rectangle` of this size with its upper-right corner at the
         given point.
         """
-        cdef Vector vec = Vector.coerce(point)
-        return Rectangle(vec._x, vec._y, vec._x + self._x, vec._y + self._y)
+        vec = Vector.coerce(point)
+        return Rectangle(vec.x, vec.y, vec.x + self.x, vec.y + self.y)
 
-    def fit_area(self, int area, bool upscale not None=True, bool downscale not None=True,
-            bool emulate not None=False):
+    def fit_area(self, area, upscale=True, downscale=True, emulate=False):
         """Scale this Size proportionally to have approximately the given
         number of pixels (but no more).
 
@@ -233,7 +185,7 @@ cdef class Size(Vector):
         if area <= 0:
             raise ValueError("Area to fit must be positive")
 
-        cdef int current_area = self._x * self._y
+        current_area = self.area
 
         if not upscale and current_area < area:
             return self
@@ -241,27 +193,18 @@ cdef class Size(Vector):
         if not downscale and current_area > area:
             return self
 
-        cls = self.__class__
-        cdef float ratio = math.sqrt(area / current_area)
+        cls = type(self)
+        ratio = math.sqrt(area / current_area)
 
         if emulate:
-            return cls(int(self._x * ratio + 0.5), int(self._y * ratio + 0.5))
+            return cls(int(self.x * ratio + 0.5), int(self.y * ratio + 0.5))
 
-        cdef int approx_width = int(self._x * ratio)
-        cdef int approx_height = int(self._y * ratio)
+        approx_width = int(self.x * ratio)
+        approx_height = int(self.y * ratio)
 
         # Find the combination of rounding the new width and height that gets
         # closest to the desired area.
-        cdef int best_width
-        cdef int best_height
-        cdef int best_area = 0
-
-        cdef int temp_width
-        cdef int temp_height
-        cdef int temp_area
-
-        cdef int dw
-        cdef int dh
+        best_area = 0
 
         for dw, dh in ((0, 0), (0, 1), (1, 0)):
             temp_width = approx_width + dw
@@ -277,7 +220,7 @@ cdef class Size(Vector):
 
         return cls(best_width, best_height)
 
-    def fit_inside(self, other, bool upscale not None=True, bool downscale not None=True):
+    def fit_inside(self, other, upscale=True, downscale=True):
         """Scale this Size proportionally to fit within the given bounds.
         Useful for creating thumbnails.
 
@@ -286,7 +229,7 @@ cdef class Size(Vector):
         """
         return self._fit(other, max, upscale, downscale)
 
-    def fit_around(self, other, bool upscale not None=True, bool downscale not None=True):
+    def fit_around(self, other, upscale=True, downscale=True):
         """Scale this Size proportionally to surround the given bounds.
 
         Set `upscale` or `downscale` to `False` to prevent resizing in either
@@ -294,11 +237,10 @@ cdef class Size(Vector):
         """
         return self._fit(other, min, upscale, downscale)
 
-    cdef _fit(self, other, minmax, bool upscale, bool downscale):
+    def _fit(self, other, minmax, upscale, downscale):
         """Implementation for `fit_inside` and `fit_around`."""
 
-        cdef Size coerced = self.__class__.coerce(other)
-        cdef float width_ratio, height_ratio, ratio
+        coerced = type(self).coerce(other)
 
         if not upscale and (
                 self.width < coerced.width and self.height < coerced.height):
@@ -318,37 +260,23 @@ cdef class Size(Vector):
             return self.__class__(int(self.width / height_ratio), coerced.height)
 
 
-
-    ### Utilities
-
-
-cdef class Rectangle:
+class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
     """I represent a bounded rectangular area on a plane."""
-    #cdef int _x1
-    #cdef int _x2
-    #cdef int _y1
-    #cdef int _y2
 
     ### Attribute access
 
-    property position:
-        def __get__(self):
-            return Vector(self._x1, self._y1)
+    @property
+    def position(self):
+        return Vector(self.x1, self.y1)
 
-    property size:
-        def __get__(self):
-            return Size(self._x2 - self._x1, self._y2 - self._y1)
+    @property
+    def size(self):
+        return Size(self.x2 - self.x1, self.y2 - self.y1)
 
 
     ### Construction
 
-    def __cinit__(self):
-        self._x1 = 0
-        self._y1 = 0
-        self._x2 = 0
-        self._y2 = 0
-
-    def __init__(self, int x1, int y1, int x2, int y2):
+    def __init__(self, x1, y1, x2, y2):
         """Create a rectangle using the coordinates of its sides."""
         # Fix up coordinate order if necessary
         if x1 > x2:
@@ -356,87 +284,83 @@ cdef class Rectangle:
         if y1 > y2:
             y1, y2 = y2, y1
 
-        self._x1 = x1
-        self._y1 = y1
-        self._x2 = x2
-        self._y2 = y2
+        super(Rectangle, self).__init__(x1, y1, x2, y2)
 
 
     ### Special methods
 
+    def __iter__(self):
+        raise NotImplementedError
+
     def __repr__(self):
         return "<{cls} topleft=({x1!r}, {y1!r}) bottomright=({x2!r}, {y2!r})".format(
             cls=self.__class__.__name__,
-            x1=self._x1, y1=self._y1,
-            x2=self._x2, y2=self._y2)
+            x1=self.x1, y1=self.y1,
+            x2=self.x2, y2=self.y2)
 
     def __nonzero__(self):
-        return self._x1 != self._x2 and self._y1 != self._y2
+        return self.x1 != self.x2 and self.y1 != self.y2
 
     def __add__(self, other):
-        cls = self.__class__
+        cls = type(self)
 
         if isinstance(other, int):
             return cls(
-                self._x1 + other, self._y1 + other,
-                self._x2 + other, self._y2 + other)
+                self.x1 + other, self.y1 + other,
+                self.x2 + other, self.y2 + other)
 
         return NotImplemented
 
     def __contains__(self, other):
         if isinstance(other, Rectangle):
             return (
-                self._x1 <= other._x1 and
-                self._y1 <= other._y1 and
-                self._x2 >= other._x2 and
-                self._y2 >= other._y2
+                self.x1 <= other.x1 and
+                self.y1 <= other.y1 and
+                self.x2 >= other.x2 and
+                self.y2 >= other.y2
             )
         if isinstance(other, Vector):
-            return (self._x1 <= other._x <= self._x2
-                and self._y1 <= other._y <= self._y2)
+            return (self.x1 <= other.x <= self.x2
+                and self.y1 <= other.y <= self.y2)
 
         return NotImplemented
 
 
     ### Properties
 
-    property left:
-        def __get__(self):
-            return self._x1
+    @property
+    def left(self):
+        return self.x1
 
-    property right:
-        def __get__(self):
-            return self._x2
+    @property
+    def right(self):
+        return self.x2
 
-    property top:
-        def __get__(self):
-            return self._y1
+    @property
+    def top(self):
+        return self.y1
 
-    property bottom:
-        def __get__(self):
-            return self._y2
+    @property
+    def bottom(self):
+        return self.y2
 
-    property width:
-        def __get__(self):
-            return self._x2 - self._x1
+    @property
+    def width(self):
+        return self.x2 - self.x1
 
-    property height:
-        def __get__(self):
-            return self._y2 - self._y1
+    @property
+    def height(self):
+        return self.y2 - self.y1
 
     ### Conversion
 
-    cdef c_api.RectangleInfo to_rect_info(self):
-        cdef c_api.RectangleInfo rectinfo
-
-        rectinfo.x = self._x1
-        rectinfo.y = self._y1
-        rectinfo.width = self._x2 - self._x1
-        rectinfo.height = self._y2 - self._y1
-
+    def to_rect_info(self):
+        rectinfo = ffi.new("RectangleInfo *")
+        rectinfo.x = self.left
+        rectinfo.y = self.top
+        rectinfo.width = self.width
+        rectinfo.height = self.height
         return rectinfo
-
-
 
 
 origin = Vector(0, 0)

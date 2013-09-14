@@ -38,4 +38,4 @@ def assert_identical(img1, img2):
     img2.bit_depth = 8
     buf1 = img1.to_buffer(format='rgba')
     buf2 = img2.to_buffer(format='rgba')
-    assert buf1 == buf2
+    assert buf1[:] == buf2[:]
