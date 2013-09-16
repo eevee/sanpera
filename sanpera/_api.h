@@ -352,20 +352,6 @@ typedef enum {
     ...
 } PixelComponent;
 
-typedef enum {
-    UndefinedPixelIntensityMethod,
-    AveragePixelIntensityMethod,
-    BrightnessPixelIntensityMethod,
-    LightnessPixelIntensityMethod,
-    Rec601LumaPixelIntensityMethod,
-    Rec601LuminancePixelIntensityMethod,
-    Rec709LumaPixelIntensityMethod,
-    Rec709LuminancePixelIntensityMethod,
-    RMSPixelIntensityMethod,
-    MSPixelIntensityMethod,
-    ...
-} PixelIntensityMethod;
-
 typedef struct {
     double red;
     double green;
@@ -399,10 +385,6 @@ typedef Quantum IndexPacket;
 typedef struct {
     ...;
 } PixelPacket;
-
-typedef struct {
-    ...;
-} QuantumPixelPacket;
 
 MagickPixelPacket *CloneMagickPixelPacket(const MagickPixelPacket *);
 //MagickRealType DecodePixelGamma(const MagickRealType);
@@ -443,17 +425,6 @@ typedef enum {
   Rec709YCbCrColorspace,
   LogColorspace,
   CMYColorspace,            /* negated linear RGB colorspace */
-  LuvColorspace,
-  HCLColorspace,
-  LCHColorspace,            /* alias for LCHuv */
-  LMSColorspace,
-  LCHabColorspace,          /* Cylindrical (Polar) Lab */
-  LCHuvColorspace,          /* Cylindrical (Polar) Luv */
-  scRGBColorspace,
-  HSIColorspace,
-  HSVColorspace,            /* alias for HSB */
-  HCLpColorspace,
-  YDbDrColorspace
 } ColorspaceType;
 
 MagickBooleanType RGBTransformImage(Image *, const ColorspaceType);
@@ -720,7 +691,6 @@ typedef enum {
     RobidouxSharpFilter,
     CosineFilter,
     SplineFilter,
-    LanczosRadiusFilter,
     SentinelFilter,  /* a count of all the filters, not a real filter */
     ...
 } FilterTypes;
@@ -747,7 +717,6 @@ Image *CoalesceImages(const Image *, ExceptionInfo *);
 // transform.h
 // (done)
 
-Image *AutoOrientImage(const Image *, const OrientationType, ExceptionInfo *);
 Image *ChopImage(const Image *, const RectangleInfo *, ExceptionInfo *);
 Image *ConsolidateCMYKImages(const Image *, ExceptionInfo *);
 Image *CropImage(const Image *, const RectangleInfo *, ExceptionInfo *);
