@@ -32,6 +32,9 @@ setup(
     ],
 
     packages=['sanpera'],
+    package_data={
+        'sanpera': ['_api.c', '_api.h'],
+    },
     install_requires=BACKPORTS + [
         'cffi',
     ],
