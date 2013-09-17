@@ -15,9 +15,7 @@ def test_cropped_canvas_fixing_large_crop():
     size = Size(20, 20)
     img = builtins.rose.resized(size)
     dim = Size(50, 50).at((-25, -25))
-    print dim
     cropped = img.cropped(dim)
 
     assert cropped.size == size
-    print cropped[0].canvas
     assert cropped[0].canvas == size.at(origin)

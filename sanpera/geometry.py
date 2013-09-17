@@ -289,6 +289,24 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
     def at(self, point):
         return self.size.at(point)
 
+    def intersection(self, other):
+        """Return the rectangle for the overlapping areas between these two.
+        """
+        # Intersection is the right-most left edge, bottom-most top edge, etc.
+        x1 = max(self.x1, other.x1)
+        x2 = max(self.y1, other.y1)
+        y1 = min(self.x2, other.x2)
+        y2 = min(self.y2, other.y2)
+
+        # Check for complete lack of overlap, indicated by swapped points, and
+        # make the non-overlapping dimensions zero
+        if x1 > x2:
+            x1 = x2 = (x1 + x2) // 2
+        if y1 > y2:
+            y1 = y2 = (y1 + y2) // 2
+
+        return Rectangle(x1, x2, y1, y2)
+
 
     ### Special methods
 

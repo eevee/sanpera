@@ -10,6 +10,7 @@ from sanpera.exception import magick_raise
 from sanpera.exception import magick_try
 from sanpera.geometry import Rectangle
 from sanpera.geometry import Size
+from sanpera.geometry import origin
 from sanpera.pixel_view import PixelView
 
 def blank_image_info():
@@ -506,8 +507,6 @@ class Image(object):
 
         p = self._stack
         new_stack_ptr = ffi.new("Image **", ffi.NULL)
-        new_height = 0
-        new_width = 0
 
         while p:
             with magick_try() as exc:
@@ -517,13 +516,6 @@ class Image(object):
                 # in the same list and thus nuked automatically
                 if new_stack_ptr == ffi.NULL:
                     new_frame = ffi.gc(new_frame, lib.DestroyImageList)
-
-            # Bookkeeping for canvas repaging, below
-            if not preserve_canvas:
-                # Track the new SIZE of the virtual canvas: the biggest
-                # resulting frame, up to the size of the crop area
-                new_height = max(new_height, new_frame.rows)
-                new_width = max(new_width, new_frame.columns)
 
             lib.AppendImageToList(new_stack_ptr, new_frame)
             p = lib.GetNextImageInList(p)
@@ -544,8 +536,11 @@ class Image(object):
             # myself
             left_delta = max(rect.left, 0)
             top_delta = max(rect.top, 0)
-            new_height = min(new_height, rect.height)
-            new_width = min(new_width, rect.width)
+            # New canvas should be the size of the overlap between the current
+            # canvas and the crop area
+            new_canvas = rect.intersection(self.size.at(origin))
+            new_height = new_canvas.height
+            new_width = new_canvas.width
             for frame in new:
                 frame._frame.page.x -= left_delta
                 frame._frame.page.y -= top_delta
