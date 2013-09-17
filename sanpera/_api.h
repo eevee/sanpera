@@ -43,12 +43,11 @@ static const int MAGICKCORE_QUANTUM_DEPTH;
 static float const QuantumRange;
 static char *const QuantumFormat;
 
-// XXX not right, not right at all
-typedef float MagickRealType;
-
 typedef unsigned int MagickStatusType;
 
-// Quantum is a plain numeric type, but varies in size depending on build
+// Plain numeric types that vary in size depending on build; these cannot be
+// accessed directly with cffi
+typedef ... MagickRealType;
 typedef ... Quantum;
 
 // XXX this also varies in size, sigh
@@ -322,11 +321,6 @@ typedef struct {
     double fuzz;
     size_t depth;
 
-    MagickRealType red;
-    MagickRealType green;
-    MagickRealType blue;
-    MagickRealType opacity;
-    MagickRealType index;
     ...;
 } MagickPixelPacket;
 
@@ -343,11 +337,11 @@ typedef struct {
 } QuantumPixelPacket;
 
 MagickPixelPacket *CloneMagickPixelPacket(const MagickPixelPacket *);
-MagickRealType DecodePixelGamma(const MagickRealType);
-MagickRealType EncodePixelGamma(const MagickRealType);
+//MagickRealType DecodePixelGamma(const MagickRealType);
+//MagickRealType EncodePixelGamma(const MagickRealType);
 //MagickBooleanType ExportImagePixels(const Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, void *, ExceptionInfo *);
 void GetMagickPixelPacket(const Image *, MagickPixelPacket *);
-MagickRealType GetPixelIntensity(const Image *image, const PixelPacket *);
+//MagickRealType GetPixelIntensity(const Image *image, const PixelPacket *);
 //MagickBooleanType ImportImagePixels(Image *, const ssize_t, const ssize_t, const size_t, const size_t, const char *, const StorageType, const void *);
 MagickBooleanType InterpolateMagickPixelPacket(const Image *, const CacheView *, const InterpolatePixelMethod, const double, const double, MagickPixelPacket *, ExceptionInfo *);
 
