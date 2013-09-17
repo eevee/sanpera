@@ -1,4 +1,9 @@
-from distutils.core import setup
+from setuptools import setup
+from setuptools.dist import Distribution
+
+# Do this first, so setuptools installs cffi immediately before trying to do
+# the below import
+Distribution(dict(setup_requires='cffi'))
 
 from sanpera._api import ffi
 
@@ -20,7 +25,7 @@ setup(
     ],
 
     packages=['sanpera'],
-    requires=[
+    install_requires=[
         'cffi',
     ],
 
