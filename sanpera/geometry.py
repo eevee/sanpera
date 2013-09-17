@@ -294,8 +294,8 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
         """
         # Intersection is the right-most left edge, bottom-most top edge, etc.
         x1 = max(self.x1, other.x1)
-        x2 = max(self.y1, other.y1)
-        y1 = min(self.x2, other.x2)
+        y1 = max(self.y1, other.y1)
+        x2 = min(self.x2, other.x2)
         y2 = min(self.y2, other.y2)
 
         # Check for complete lack of overlap, indicated by swapped points, and
@@ -305,7 +305,7 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
         if y1 > y2:
             y1 = y2 = (y1 + y2) // 2
 
-        return Rectangle(x1, x2, y1, y2)
+        return Rectangle(x1, y1, x2, y2)
 
 
     ### Special methods
