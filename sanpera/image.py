@@ -502,38 +502,65 @@ class Image(object):
         return type(self)(new_stack_ptr[0])
 
     def cropped(self, rect, preserve_canvas=False):
-        # XXX turn this back into a Rectangle method once it's ported
         rectinfo = rect.to_rect_info()
 
         p = self._stack
         new_stack_ptr = ffi.new("Image **", ffi.NULL)
+        new_height = 0
+        new_width = 0
 
         while p:
             with magick_try() as exc:
                 new_frame = lib.CropImage(p, rectinfo, exc.ptr)
-            #except Exception:
-            # XXX what's the right thing to do here?  i can't gc the single
-            # frame above or i'll get wacky behavior later...
-            #    c_api.DestroyImage(new_frame)
 
-            # Repage by default after a crop; not doing this is unexpected and
-            # frankly insane.  Plain old `+repage` behavior would involve
-            # nuking the page entirely, but that would screw up multiple
-            # frames; instead, shift the canvas for every frame so the crop
-            # region's upper left corner is the new origin.
+                # Only GC the first frame in the stack, since the others will be
+                # in the same list and thus nuked automatically
+                if new_stack_ptr == ffi.NULL:
+                    new_frame = ffi.gc(new_frame, lib.DestroyImageList)
+
+            # Bookkeeping for canvas repaging, below
             if not preserve_canvas:
-                new_frame.page.x -= rect.left
-                new_frame.page.y -= rect.top
+                # Track the new SIZE of the virtual canvas: the biggest
+                # resulting frame, up to the size of the crop area
+                new_height = max(new_height, new_frame.rows)
+                new_width = max(new_width, new_frame.columns)
 
             lib.AppendImageToList(new_stack_ptr, new_frame)
             p = lib.GetNextImageInList(p)
 
-        return type(self)(new_stack_ptr[0])
+        new = type(self)(new_stack_ptr[0])
+
+        # Repage by default after a crop; not doing this is unexpected and
+        # frankly insane.  Plain old `+repage` behavior would involve nuking
+        # the page entirely, but that would screw up multiple frames; instead,
+        # shift the canvas for every frame so the crop region's upper left
+        # corner is the new origin, and fix the dimensions so every frame fits
+        # (up to the size of the crop area, though ImageMagick should never
+        # return an image bigger than the crop area...  right?)
+        if not preserve_canvas:
+            # ImageMagick actually behaves when the crop area extends out
+            # beyond the origin, so don't fix the edges in that case
+            # TODO this is complex enough that i should perhaps just do it
+            # myself
+            left_delta = max(rect.left, 0)
+            top_delta = max(rect.top, 0)
+            new_height = min(new_height, rect.height)
+            new_width = min(new_width, rect.width)
+            for frame in new:
+                frame._frame.page.x -= left_delta
+                frame._frame.page.y -= top_delta
+                frame._frame.page.height = new_height
+                frame._frame.page.width = new_width
+
+        return new
+
 
     def coalesced(self):
         """Returns an image with each frame composited over previous frames."""
         with magick_try() as exc:
-            new_image = lib.CoalesceImages(self._stack, exc.ptr)
+            new_image = ffi.gc(
+                lib.CoalesceImages(self._stack, exc.ptr),
+                lib.DestroyImageList)
 
         return type(self)(new_image)
 

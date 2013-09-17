@@ -286,6 +286,9 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
 
         super(Rectangle, self).__init__(x1, y1, x2, y2)
 
+    def at(self, point):
+        return self.size.at(point)
+
 
     ### Special methods
 
