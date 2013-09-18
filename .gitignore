@@ -2,6 +2,7 @@
 *.pyc
 *.so
 __pycache__
+/sanpera/_apiconfig.json
 
 .directory
 .ropeproject
