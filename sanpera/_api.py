@@ -84,6 +84,19 @@ def find_imagemagick_configuration():
     )
 
 
+################################################################################
+# FFI setup
+
+ffi = cffi.FFI()
+
+here = os.path.dirname(__file__)
+
+# For the sake of sanity and syntax highlighting, the C-ish parts are in
+# separate files with appropriate extensions.
+with open(os.path.join(here, '_api.h')) as f_headers:
+    ffi.cdef(f_headers.read())
+
+
 extension_kwargs = {}
 if os.environ.get('SANPERA_BUILD', '').lower().startswith('y'):
     extension_kwargs = find_imagemagick_configuration()
