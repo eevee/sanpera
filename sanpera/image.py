@@ -312,7 +312,7 @@ class Image(object):
 
         with magick_try() as exc:
             cbuf = ffi.gc(
-                lib.ImageToBlob(image_info, self._stack, length, exc.ptr),
+                lib.ImagesToBlob(image_info, self._stack, length, exc.ptr),
                 lib.RelinquishMagickMemory)
 
         return ffi.buffer(cbuf, length[0])
