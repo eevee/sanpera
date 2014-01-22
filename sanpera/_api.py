@@ -42,8 +42,8 @@ def find_imagemagick_configuration():
         pass
     else:
         return dict(
-            extra_compile_args=shlex.split(compile_args),
-            extra_link_args=shlex.split(link_args),
+            extra_compile_args=shlex.split(compile_args.decode('ascii')),
+            extra_link_args=shlex.split(link_args.decode('ascii')),
         )
 
     # TODO this could use more fallback, but IM builds itself with different
@@ -79,7 +79,7 @@ with open(os.path.join(here, '_api.c')) as f_stub:
         **extension_kwargs)
 
 # ImageMagick initialization
-lib.MagickCoreGenesis(sys.argv[0], lib.MagickFalse)
+lib.MagickCoreGenesis(sys.argv[0].encode('ascii'), lib.MagickFalse)
 
 # Teardown
 atexit.register(lib.MagickCoreTerminus)
