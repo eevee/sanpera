@@ -1,9 +1,14 @@
 .*.swp
 *.pyc
 *.so
+__pycache__
+
+.directory
+.ropeproject
 
 MANIFEST
 /build
 /dist
+/*.egg-info/
 
 /doc/_build
