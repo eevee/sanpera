@@ -2,6 +2,18 @@
 #include <magick/MagickCore.h>
 
 // -----------------------------------------------------------------------------
+// Conversion to ImageMagick's opaque types
+
+MagickRealType sanpera_to_magick_real_type(long double value) {
+    return (MagickRealType)value;
+}
+
+Quantum sanpera_to_quantum(long double value) {
+    return (Quantum)value;
+}
+
+
+// -----------------------------------------------------------------------------
 // Pixel channel handling
 
 // Quantum varies in size depending on how ImageMagick was compiled, so it

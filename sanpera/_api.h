@@ -19,15 +19,6 @@ typedef ... CacheView;
 
 
 
-
-typedef struct {
-    size_t width;
-    size_t height;
-    ssize_t x;
-    ssize_t y;
-} RectangleInfo;
-
-
 // =============================================================================
 // core types
 // -----------------------------------------------------------------------------
@@ -46,9 +37,10 @@ static char *const QuantumFormat;
 typedef unsigned int MagickStatusType;
 
 // Plain numeric types that vary in size depending on build; these cannot be
-// accessed directly with cffi
-typedef ... MagickRealType;
-typedef ... Quantum;
+// accessed directly with cffi.  They're declared as structs so cffi will
+// figure out the sizes and we can create them from C
+typedef struct { ...; } MagickRealType;
+typedef struct { ...; } Quantum;
 
 // XXX this also varies in size, sigh
 typedef unsigned long long MagickSizeType;
@@ -242,6 +234,69 @@ void MagickCoreGenesis(const char *, const MagickBooleanType);
 void MagickCoreTerminus();
 
 
+// -----------------------------------------------------------------------------
+// geometry.h
+// (done)
+
+typedef enum {
+    ForgetGravity,
+    NorthWestGravity,
+    NorthGravity,
+    NorthEastGravity,
+    WestGravity,
+    CenterGravity,
+    EastGravity,
+    SouthWestGravity,
+    SouthGravity,
+    SouthEastGravity,
+    ...
+} GravityType;
+
+typedef struct {
+    double sx;
+    double rx;
+    double ry;
+    double sy;
+    double tx;
+    double ty;
+} AffineMatrix;
+
+typedef struct {
+    double rho;
+    double sigma;
+    double xi;
+    double psi;
+    double chi;
+} GeometryInfo;
+
+typedef struct {
+    ssize_t x;
+    ssize_t y;
+} OffsetInfo;
+
+typedef struct {
+    size_t width;
+    size_t height;
+    ssize_t x;
+    ssize_t y;
+} RectangleInfo;
+
+MagickStatusType GetGeometry(const char *,ssize_t *,ssize_t *,size_t *,size_t *);
+char *GetPageGeometry(const char *);
+void GravityAdjustGeometry(const size_t,const size_t, const GravityType,RectangleInfo *);
+MagickBooleanType IsGeometry(const char *);
+MagickBooleanType IsSceneGeometry(const char *,const MagickBooleanType);
+MagickStatusType ParseAbsoluteGeometry(const char *,RectangleInfo *);
+MagickStatusType ParseAffineGeometry(const char *,AffineMatrix *,ExceptionInfo *);
+MagickStatusType ParseGeometry(const char *,GeometryInfo *);
+MagickStatusType ParseGravityGeometry(const Image *,const char *,RectangleInfo *, ExceptionInfo *);
+MagickStatusType ParseMetaGeometry(const char *,ssize_t *,ssize_t *,size_t *,size_t *);
+MagickStatusType ParsePageGeometry(const Image *,const char *,RectangleInfo *,ExceptionInfo *);
+MagickStatusType ParseRegionGeometry(const Image *,const char *,RectangleInfo *, ExceptionInfo *);
+void SetGeometry(const Image *,RectangleInfo *);
+void SetGeometryInfo(GeometryInfo *);
+
+
 // =============================================================================
 // pixel access
 // -----------------------------------------------------------------------------
@@ -389,8 +444,11 @@ typedef enum {
     ...
 } PrimaryInfo;
 
-typedef enum {
-    ...
+typedef struct {
+    double x1;
+    double y1;
+    double x2;
+    double y2;
 } SegmentInfo;
 
 typedef enum {
@@ -687,9 +745,82 @@ Image *TrimImage(const Image *, ExceptionInfo *);
 
 // -----------------------------------------------------------------------------
 // composite.h
-// (not done)
+// (done)
 
-MagickBooleanType TextureImage(Image *, const Image *);
+typedef enum {
+    UndefinedCompositeOp,
+    NoCompositeOp,
+    ModulusAddCompositeOp,
+    AtopCompositeOp,
+    BlendCompositeOp,
+    BumpmapCompositeOp,
+    ChangeMaskCompositeOp,
+    ClearCompositeOp,
+    ColorBurnCompositeOp,
+    ColorDodgeCompositeOp,
+    ColorizeCompositeOp,
+    CopyBlackCompositeOp,
+    CopyBlueCompositeOp,
+    CopyCompositeOp,
+    CopyCyanCompositeOp,
+    CopyGreenCompositeOp,
+    CopyMagentaCompositeOp,
+    CopyOpacityCompositeOp,
+    CopyRedCompositeOp,
+    CopyYellowCompositeOp,
+    DarkenCompositeOp,
+    DstAtopCompositeOp,
+    DstCompositeOp,
+    DstInCompositeOp,
+    DstOutCompositeOp,
+    DstOverCompositeOp,
+    DifferenceCompositeOp,
+    DisplaceCompositeOp,
+    DissolveCompositeOp,
+    ExclusionCompositeOp,
+    HardLightCompositeOp,
+    HueCompositeOp,
+    InCompositeOp,
+    LightenCompositeOp,
+    LinearLightCompositeOp,
+    LuminizeCompositeOp,
+    MinusDstCompositeOp,
+    ModulateCompositeOp,
+    MultiplyCompositeOp,
+    OutCompositeOp,
+    OverCompositeOp,
+    OverlayCompositeOp,
+    PlusCompositeOp,
+    ReplaceCompositeOp,
+    SaturateCompositeOp,
+    ScreenCompositeOp,
+    SoftLightCompositeOp,
+    SrcAtopCompositeOp,
+    SrcCompositeOp,
+    SrcInCompositeOp,
+    SrcOutCompositeOp,
+    SrcOverCompositeOp,
+    ModulusSubtractCompositeOp,
+    ThresholdCompositeOp,
+    XorCompositeOp,
+    DivideDstCompositeOp,
+    DistortCompositeOp,
+    BlurCompositeOp,
+    PegtopLightCompositeOp,
+    VividLightCompositeOp,
+    PinLightCompositeOp,
+    LinearDodgeCompositeOp,
+    LinearBurnCompositeOp,
+    MathematicsCompositeOp,
+    DivideSrcCompositeOp,
+    MinusSrcCompositeOp,
+    DarkenIntensityCompositeOp,
+    LightenIntensityCompositeOp
+} CompositeOperator;
+
+MagickBooleanType CompositeImage(Image *,const CompositeOperator,const Image *,const ssize_t, const ssize_t);
+MagickBooleanType CompositeImageChannel(Image *,const ChannelType,const CompositeOperator, const Image *,const ssize_t,const ssize_t);
+MagickBooleanType TextureImage(Image *,const Image *);
 
 
 // -----------------------------------------------------------------------------
@@ -697,6 +828,277 @@ MagickBooleanType TextureImage(Image *, const Image *);
 // (not done)
 
 Image *ColorizeImage(const Image *, const char *, const PixelPacket, ExceptionInfo *);
+
+
+// -----------------------------------------------------------------------------
+// type.h -- as in font faces, not C types
+
+typedef enum {
+    UndefinedStretch,
+    NormalStretch,
+    UltraCondensedStretch,
+    ExtraCondensedStretch,
+    CondensedStretch,
+    SemiCondensedStretch,
+    SemiExpandedStretch,
+    ExpandedStretch,
+    ExtraExpandedStretch,
+    UltraExpandedStretch,
+    AnyStretch
+} StretchType;
+
+typedef enum {
+    UndefinedStyle,
+    NormalStyle,
+    ItalicStyle,
+    ObliqueStyle,
+    AnyStyle
+} StyleType;
+
+typedef struct {
+    size_t face;
+    char *path;
+    char *name;
+    char *description;
+    char *family;
+    StyleType style;
+    StretchType stretch;
+    size_t weight;
+    char *encoding;
+    char *foundry;
+    char *format;
+    char *metrics;
+    char *glyphs;
+
+    MagickBooleanType stealth;
+
+    // also some internal linked-list and debug stuff
+    ...;
+} TypeInfo;
+
+
+const TypeInfo *GetTypeInfo(const char *,ExceptionInfo *);
+const TypeInfo *GetTypeInfoByFamily(const char *,const StyleType,const StretchType, const size_t,ExceptionInfo *);
+const TypeInfo **GetTypeInfoList(const char *,size_t *,ExceptionInfo *);
+char **GetTypeList(const char *,size_t *,ExceptionInfo *);
+MagickBooleanType ListTypeInfo(FILE *,ExceptionInfo *);
+MagickBooleanType TypeComponentGenesis();
+void TypeComponentTerminus();
+
+
+// -----------------------------------------------------------------------------
+// draw.h
+// (not done)
+
+typedef enum {
+    UndefinedAlign,
+    LeftAlign,
+    CenterAlign,
+    RightAlign
+} AlignType;
+
+typedef enum {
+    UndefinedPathUnits,
+    UserSpace,
+    UserSpaceOnUse,
+    ObjectBoundingBox
+} ClipPathUnits;
+
+typedef enum {
+    UndefinedDecoration,
+    NoDecoration,
+    UnderlineDecoration,
+    OverlineDecoration,
+    LineThroughDecoration
+} DecorationType;
+
+typedef enum {
+    UndefinedDirection,
+    RightToLeftDirection,
+    LeftToRightDirection
+} DirectionType;
+
+typedef enum {
+    UndefinedRule,
+    EvenOddRule,
+    NonZeroRule
+} FillRule;
+
+typedef enum {
+    UndefinedGradient,
+    LinearGradient,
+    RadialGradient
+} GradientType;
+
+typedef enum {
+    UndefinedCap,
+    ButtCap,
+    RoundCap,
+    SquareCap
+} LineCap;
+
+typedef enum {
+    UndefinedJoin,
+    MiterJoin,
+    RoundJoin,
+    BevelJoin
+} LineJoin;
+
+typedef enum {
+    UndefinedMethod,
+    PointMethod,
+    ReplaceMethod,
+    FloodfillMethod,
+    FillToBorderMethod,
+    ResetMethod
+} PaintMethod;
+
+typedef enum {
+    UndefinedPrimitive,
+    PointPrimitive,
+    LinePrimitive,
+    RectanglePrimitive,
+    RoundRectanglePrimitive,
+    ArcPrimitive,
+    EllipsePrimitive,
+    CirclePrimitive,
+    PolylinePrimitive,
+    PolygonPrimitive,
+    BezierPrimitive,
+    ColorPrimitive,
+    MattePrimitive,
+    TextPrimitive,
+    ImagePrimitive,
+    PathPrimitive
+} PrimitiveType;
+
+typedef enum {
+    UndefinedReference,
+    GradientReference
+} ReferenceType;
+
+typedef enum {
+    UndefinedSpread,
+    PadSpread,
+    ReflectSpread,
+    RepeatSpread
+} SpreadMethod;
+
+typedef struct { 
+    double x;
+    double y;
+} PointInfo;
+
+typedef struct {
+    MagickPixelPacket color;
+    MagickRealType offset;
+} StopInfo;
+
+typedef struct {
+    GradientType type;
+    RectangleInfo bounding_box;
+    SegmentInfo gradient_vector;
+    StopInfo *stops;
+    size_t number_stops;
+    SpreadMethod spread;
+    PointInfo center;
+    MagickRealType radius;
+} GradientInfo;
+
+typedef struct _ElementReference {
+    char *id;
+    ReferenceType type;
+    GradientInfo gradient;
+    size_t signature;
+    struct _ElementReference *previous;
+    struct _ElementReference *next;
+} ElementReference;
+
+typedef struct {
+    char *primitive;
+    char *geometry;
+    RectangleInfo viewbox;
+    AffineMatrix affine;
+    GravityType gravity;
+    PixelPacket fill;
+    PixelPacket stroke;
+    double stroke_width;
+    GradientInfo gradient;
+    Image *fill_pattern;
+    Image *tile;
+    Image *stroke_pattern;
+    MagickBooleanType stroke_antialias;
+    MagickBooleanType text_antialias;
+    FillRule fill_rule;
+    LineCap linecap;
+    LineJoin linejoin;
+    size_t miterlimit;
+    double dash_offset;
+    DecorationType decorate;
+    CompositeOperator compose;
+    char *text;
+    size_t face;
+    char *font;
+    char *metrics;
+    char *family;
+    StyleType style;
+    StretchType stretch;
+    size_t weight;
+    char *encoding;
+    double pointsize;
+    char *density;
+    AlignType align;
+    PixelPacket undercolor;
+    PixelPacket border_color;
+    char *server_name;
+    double *dash_pattern;
+    char *clip_mask;
+    SegmentInfo bounds;
+    ClipPathUnits clip_units;
+    Quantum opacity;
+    MagickBooleanType render;
+    ElementReference element_reference;
+    MagickBooleanType debug;
+    size_t signature;
+    double kerning;
+    double interword_spacing;
+    double interline_spacing;
+    DirectionType direction;
+    ...;
+} DrawInfo;
+
+typedef struct {
+    PointInfo point;
+    size_t coordinates;
+    PrimitiveType primitive;
+    PaintMethod method;
+    char *text;
+} PrimitiveInfo;
+
+typedef struct {
+    PointInfo pixels_per_em;
+    double ascent;
+    double descent;
+    double width;
+    double height;
+    double max_advance;
+    double underline_position;
+    double underline_thickness;
+    SegmentInfo bounds;
+    PointInfo origin;
+} TypeMetric;
+
+DrawInfo *AcquireDrawInfo();
+DrawInfo *CloneDrawInfo(const ImageInfo *,const DrawInfo *);
+DrawInfo *DestroyDrawInfo(DrawInfo *);
+MagickBooleanType DrawAffineImage(Image *,const Image *,const AffineMatrix *);
+MagickBooleanType DrawClipPath(Image *,const DrawInfo *,const char *);
+MagickBooleanType DrawGradientImage(Image *,const DrawInfo *);
+MagickBooleanType DrawImage(Image *,const DrawInfo *);
+MagickBooleanType DrawPatternPath(Image *,const DrawInfo *,const char *,Image **);
+MagickBooleanType DrawPrimitive(Image *,const DrawInfo *,const PrimitiveInfo *);
+void GetAffineMatrix(AffineMatrix *);
+void GetDrawInfo(const ImageInfo *, DrawInfo *);
 
 
 // -----------------------------------------------------------------------------
@@ -781,6 +1183,8 @@ MagickBooleanType WriteImages(const ImageInfo *, Image *, const char *, Exceptio
 // =============================================================================
 // custom non-imagemagick stuff implemented in _api.c
 
+MagickRealType sanpera_to_magick_real_type(long double);
+Quantum sanpera_to_quantum(long double);
 void sanpera_pixel_to_doubles(PixelPacket *, double[]);
 void sanpera_pixel_from_doubles(PixelPacket *, double[]);
 void sanpera_magick_pixel_to_doubles(MagickPixelPacket *, double[]);
