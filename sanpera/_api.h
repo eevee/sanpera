@@ -20,6 +20,22 @@ typedef ... CacheView;
 
 
 // =============================================================================
+// independent stuff
+// -----------------------------------------------------------------------------
+// version.h
+// (done)
+
+const char *GetMagickCopyright();
+const char *GetMagickFeatures();
+char *GetMagickHomeURL();
+const char *GetMagickPackageName();
+const char *GetMagickQuantumDepth(size_t *);
+const char *GetMagickQuantumRange(size_t *);
+const char *GetMagickReleaseDate();
+const char *GetMagickVersion(size_t *);
+
+
+// =============================================================================
 // core types
 // -----------------------------------------------------------------------------
 // MagickCore.h

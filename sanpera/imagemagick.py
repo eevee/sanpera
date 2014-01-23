@@ -1,27 +1,28 @@
+# encoding: utf8
+"""Various information about the underlying ImageMagick library and the
+features it supports.
+
+Deliberately not named ``features`` to emphasize that everything herein is
+highly specific to ImageMagick and completely out of the library's hands.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import namedtuple
+
 from sanpera._api import ffi, lib
 from sanpera.exception import magick_try
 
+FEATURES = frozenset(ffi.string(lib.GetMagickFeatures()).decode('ascii').split(' '))
+HAS_OPENMP = 'OpenMP' in FEATURES
+HAS_OPENCL = 'OpenCL' in FEATURES
+HAS_HDRI = 'HDRI' in FEATURES
 
-class ImageFormat(object):
-    def __init__(self, can_read, can_write, supports_frames, name,
-            description):
 
-        self.can_read = can_read
-        self.can_write = can_write
-        self.supports_frames = supports_frames
-        self.name = name
-        self.description = description
-        # TODO: indicate blob support?  how does that matter to consumer?
-
-    def __repr__(self):
-        return "<{cls} {name}>".format(
-            cls=type(self).__name__,
-            name=self.name)
-
+ImageFormat = namedtuple(
+    'ImageFormat',
+    ['name', 'description', 'can_read', 'can_write', 'supports_frames'])
 
 def _get_formats():
     formats = dict()
@@ -36,7 +37,7 @@ def _get_formats():
 
     for i in range(num_formats[0]):
         name = ffi.string(magick_infos[i].name).decode('ascii')
-        formats[name] = ImageFormat(
+        formats[name.lower()] = ImageFormat(
             name=name,
             description=ffi.string(magick_infos[i].description).decode('ascii'),
             can_read=magick_infos[i].decoder != ffi.NULL,
@@ -44,10 +45,6 @@ def _get_formats():
             supports_frames=magick_infos[i].adjoin != 0,
         )
 
-
     return formats
 
-
-# TODO should the keys here be case-insensitive as in imagemagick, or can users
-# suck it?
-image_formats = _get_formats()
+IMAGE_FORMATS = _get_formats()
