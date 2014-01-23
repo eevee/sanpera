@@ -272,7 +272,9 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
 
     ### Construction
 
-    def __init__(self, x1, y1, x2, y2):
+    # Have to use __new__ here since a `tuple` needs to know its size before
+    # being created.  Not sure why __init__ works on py2, but it doesn't on 3
+    def __new__(cls, x1, y1, x2, y2):
         """Create a rectangle using the coordinates of its sides."""
         # Fix up coordinate order if necessary
         if x1 > x2:
@@ -280,7 +282,7 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
         if y1 > y2:
             y1, y2 = y2, y1
 
-        super(Rectangle, self).__init__(x1, y1, x2, y2)
+        return super(Rectangle, cls).__new__(cls, x1, y1, x2, y2)
 
     def at(self, point):
         return self.size.at(point)
@@ -315,8 +317,10 @@ class Rectangle(namedtuple('_Rectangle', ['x1', 'y1', 'x2', 'y2'])):
             x1=self.x1, y1=self.y1,
             x2=self.x2, y2=self.y2)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.x1 != self.x2 and self.y1 != self.y2
+
+    __nonzero__ = __bool__
 
     def __add__(self, other):
         cls = type(self)

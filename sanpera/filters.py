@@ -44,7 +44,7 @@ class ColorizeFilter(BuiltinFilter):
     def _implementation(self, frame):
         # This is incredibly stupid, but yes, ColorizeImage only accepts a
         # string for the opacity.
-        opacity = bytes(self._amount * 100.) + b"%"
+        opacity = str(self._amount * 100.).encode('ascii') + b"%"
 
         color = ffi.new("PixelPacket *")
         self._color._populate_pixel(color)

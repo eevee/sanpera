@@ -163,7 +163,7 @@ class BaseColor(object):
         pixel = ffi.new("PixelPacket *")
 
         with magick_try() as exc:
-            success = lib.QueryColorDatabase(bytes(name), pixel, exc.ptr)
+            success = lib.QueryColorDatabase(name.encode('ascii'), pixel, exc.ptr)
         if not success:
             raise ValueError("Can't find a color named {0!r}".format(name))
 

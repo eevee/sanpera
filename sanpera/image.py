@@ -144,7 +144,7 @@ class Image(object):
             self._stack = ffi.NULL
         else:
             # Blank out the filename so IM doesn't try to write to it later
-            _c_stack.filename[0] = '\0'
+            _c_stack.filename[0] = b'\0'
 
             self._stack = _c_stack
 
@@ -219,7 +219,7 @@ class Image(object):
 
         # Make sure not to overflow the char[]
         # TODO maybe just error out when this happens
-        image_info.filename = name[:lib.MaxTextExtent]
+        image_info.filename = name.encode('ascii')[:lib.MaxTextExtent]
 
         with magick_try() as exc:
             ptr = ffi.gc(
@@ -229,7 +229,7 @@ class Image(object):
 
         # Blank out the magick format just in case ImageMagick decides to write
         # to it later
-        ptr.magick[0] = '\0'
+        ptr.magick[0] = b'\0'
 
         return cls(ptr)
 
@@ -277,8 +277,8 @@ class Image(object):
                 # If the caller provided an explicit format, pass it along
                 # Make sure not to overflow the char[]
                 # TODO maybe just error out when this happens
-                image_info.magick = format[:lib.MaxTextExtent]
-            elif self._stack.magick[0] == '\0':
+                image_info.magick = format.encode('ascii')[:lib.MaxTextExtent]
+            elif self._stack.magick[0] == b'\0':
                 # Uhoh; no format provided and nothing given by caller
                 raise MissingFormatError
             # TODO detect format from filename if explicitly asked to do so
@@ -305,8 +305,8 @@ class Image(object):
             # If the caller provided an explicit format, pass it along
             # Make sure not to overflow the char[]
             # TODO maybe just error out when this happens
-            image_info.magick = format[:lib.MaxTextExtent]
-        elif self._stack.magick[0] == '\0':
+            image_info.magick = format.encode('ascii')[:lib.MaxTextExtent]
+        elif self._stack.magick[0] == b'\0':
             # Uhoh; no format provided and nothing given by caller
             raise MissingFormatError
 

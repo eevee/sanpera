@@ -59,7 +59,8 @@ def magick_raise(exc, force=False):
         message = ffi.string(exc.reason)
 
     severity_name = ffi.string(ffi.cast("ExceptionType", exc.severity))
-    message = message + b'   ' + severity_name
+    # severity_name is an enum name and thus a string, not bytes
+    message = message + b'   ' + severity_name.encode('ascii')
 
     if exc.severity < lib.ErrorException:
         # This is a warning, so do a warning
