@@ -20,6 +20,17 @@ HAS_OPENCL = 'OpenCL' in FEATURES
 HAS_HDRI = 'HDRI' in FEATURES
 
 
+# Version number is given as hex; version A.B.C is 0xABC
+_out = ffi.new("size_t *")
+lib.GetMagickVersion(_out)
+VERSION = (
+    (_out[0] & 0xf00) >> 8,
+    (_out[0] & 0x0f0) >> 4,
+    (_out[0] & 0x00f) >> 0,
+)
+del _out
+
+
 ImageFormat = namedtuple(
     'ImageFormat',
     ['name', 'description', 'can_read', 'can_write', 'supports_frames'])

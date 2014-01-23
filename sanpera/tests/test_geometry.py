@@ -51,11 +51,6 @@ def test_size_fit_area():
     assert size.fit_area(10) == geom.Size(3, 3)
     assert size.fit_area(11) == geom.Size(2, 5)
 
-    assert size.fit_area(7, emulate=True) == geom.Size(2, 3)
-    assert size.fit_area(8, emulate=True) == geom.Size(2, 3)
-    assert size.fit_area(9, emulate=True) == geom.Size(2, 4)
-    assert size.fit_area(10, emulate=True) == geom.Size(3, 4)
-    assert size.fit_area(11, emulate=True) == geom.Size(3, 4)
 
 def test_size_fit_inside():
     assert geom.Size(50, 50).fit_inside((10, 10)) == geom.Size(10, 10)

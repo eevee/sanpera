@@ -7,6 +7,7 @@ See: http://www.imagemagick.org/Usage/resize/
 import pytest
 
 from sanpera.image import patterns
+from sanpera.imagemagick import VERSION
 from sanpera.tests.util import get_image
 from sanpera.tests.im_usage.common import convert
 
@@ -109,20 +110,25 @@ def test_half_terminal(ctx):
     ctx.compare(img, 'half_terminal.miff')
 
 
-# A note on these tests: old ImageMagick truncates the new dimensions, recent
-# ImageMagick rounds.  Size.fit_area is more clever than either of these, so
-# the `emulate` flag exists just to make these tests pixel-perfect.  Also note
-# that this means these tests will fail on ImageMagick before 6.7.5.
+# Note that ImageMagick's @ calculation was buggy between 6.7.6ish and 6.8.6-5.
+# Hence, these tests are skipped in that range.  (Alas, getting the patch level
+# is nontrivial.)
+skipif_bad_area = pytest.mark.skipif(
+    (6, 7, 3) < VERSION < (6, 8, 7),
+    reason="Buggy @ calculation")
+
 @convert('convert dragon.gif -resize 4096@ pixel_dragon.miff')
+@skipif_bad_area
 def test_pixel_dragon(ctx):
     img = get_image('dragon.gif')
-    img = img.resized(img.size.fit_area(4096, emulate=True))
+    img = img.resized(img.size.fit_area(4096))
     ctx.compare(img, 'pixel_dragon.miff')
 
 @convert('convert terminal.gif -resize 4096@ pixel_terminal.miff')
+@skipif_bad_area
 def test_pixel_terminal(ctx):
     img = get_image('terminal.gif')
-    img = img.resized(img.size.fit_area(4096, emulate=True))
+    img = img.resized(img.size.fit_area(4096))
     ctx.compare(img, 'pixel_terminal.miff')
 
 
