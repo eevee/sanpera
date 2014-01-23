@@ -32,7 +32,7 @@ def _get_formats():
     # Snag the list of known supported image formats
     with magick_try() as exc:
         magick_infos = ffi.gc(
-            lib.GetMagickInfoList("*", num_formats, exc.ptr),
+            lib.GetMagickInfoList(b"*", num_formats, exc.ptr),
             lib.RelinquishMagickMemory)
 
     for i in range(num_formats[0]):
