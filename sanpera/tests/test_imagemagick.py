@@ -13,7 +13,7 @@ def test_format_metadata():
     assert png.can_write
     assert not png.supports_frames
 
-    gif = IMAGE_FORMATS['png']
+    gif = IMAGE_FORMATS['gif']
     assert gif.can_read
     assert gif.can_write
     assert gif.supports_frames
