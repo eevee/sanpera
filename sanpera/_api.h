@@ -1203,5 +1203,25 @@ MagickRealType sanpera_to_magick_real_type(long double);
 Quantum sanpera_to_quantum(long double);
 void sanpera_pixel_to_doubles(PixelPacket *, double[]);
 void sanpera_pixel_from_doubles(PixelPacket *, double[]);
+void sanpera_pixel_from_doubles_channel(PixelPacket *, double[], ChannelType);
 void sanpera_magick_pixel_to_doubles(MagickPixelPacket *, double[]);
 void sanpera_magick_pixel_from_doubles(MagickPixelPacket *, double[]);
+void sanpera_magick_pixel_from_doubles_channel(MagickPixelPacket *, double[], ChannelType);
+
+typedef enum {
+    SANPERA_OP_LOAD_SOURCE_COLOR,
+    SANPERA_OP_LOAD_COLOR,
+    SANPERA_OP_LOAD_NUMBER,
+    SANPERA_OP_ADD,
+    SANPERA_OP_MULTIPLY,
+    SANPERA_OP_CLAMP,
+    SANPERA_OP_DONE
+} sanpera_evaluate_op;
+
+typedef struct {
+    sanpera_evaluate_op op;
+    PixelPacket *color;
+    double number;
+} sanpera_evaluate_step;
+
+Image *sanpera_evaluate_filter(Image **, sanpera_evaluate_step[], ChannelType, ExceptionInfo *);

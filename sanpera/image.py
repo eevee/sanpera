@@ -573,6 +573,16 @@ class Image(object):
         return type(self)(new_image)
 
 
+# TODO does this belong here?  it IS a way to create an Image, i suppose
+def gradient(size, from_color, to_color, image_cls=Image):
+    image = image_cls.new(size)
+    # TODO not sure i want draw imported globally
+    from sanpera.draw import Brush
+    brush = Brush(image[0])
+    brush.gradient(from_color, to_color)
+    return image
+
+
 # TODO this should probably not live in cython
 class BuiltinRegistry(object):
     # XXX possibly spruce this up a bit to work better with other kinds of

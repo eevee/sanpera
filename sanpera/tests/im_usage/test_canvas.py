@@ -7,7 +7,7 @@ See: http://www.imagemagick.org/Usage/canvas/
 from sanpera.color import RGBColor
 from sanpera.geometry import Size
 from sanpera.image import Image, builtins
-from sanpera.filters import ColorizeFilter, evaluate
+from sanpera.filters import Colorize, image_filter
 from sanpera.tests.im_usage.common import convert
 from sanpera.tests.util import get_image
 
@@ -45,7 +45,7 @@ def test_rose_pixel(ctx):
 def test_color_colorize(ctx):
     img = get_image('test.png')
     img[0].translucent = False
-    img = evaluate(ColorizeFilter(RGBColor.parse('sienna'), 1.0), *img)
+    img = Colorize(RGBColor.parse('sienna'), 1.0)(*img)
     ctx.compare(img, 'color_colorize.miff')
 
 @convert('convert test.png -alpha Opaque +level-colors Chocolate color_levelc.miff')
@@ -75,23 +75,27 @@ def test_color_border(ctx):
 @convert('convert test.png +matte -fx Gold  color_fx_constant.miff')
 def test_color_fx_constant(ctx):
     gold = RGBColor.parse('gold')
+
+    @image_filter
     def gold_filter(self, *a):
         return gold
 
     img = get_image('test.png')
     img[0].translucent = False
-    img = evaluate(gold_filter, *img)
+    img = gold_filter(*img)
     ctx.compare(img, 'color_fx_constant.miff')
 
 @convert('convert test.png +matte -fx "Gold*.7" color_fx_math.miff')
 def test_color_fx_math(ctx):
     gold = RGBColor.parse('gold')
+
+    @image_filter
     def gold_filter(self, *a):
         return gold * 0.7
 
     img = get_image('test.png')
     img[0].translucent = False
-    img = evaluate(gold_filter, *img)
+    img = gold_filter(*img)
     ctx.compare(img, 'color_fx_math.miff')
 
 @convert('convert test.png -matte -fill #FF000040 -draw "color 0,0 reset" color_semitrans.miff')

@@ -3,18 +3,24 @@ import colorsys
 
 from sanpera._api import ffi, lib
 from sanpera.exception import magick_try
+from sanpera.imagemagick import HAS_HDRI
 
 
 # Scale between a fixed integral range and continuous 0-1:
 #  0 ----- 1 ----- 2 ----- 3
 # 0.0                     1.0
 
-def _clamp(ch):
-    if ch < 0:
-        return 0.
-    if ch > 1:
-        return 1.
-    return ch
+if HAS_HDRI:
+    # Never clamp!
+    def _clamp(ch):
+        return ch
+else:
+    def _clamp(ch):
+        if ch < 0:
+            return 0.
+        if ch > 1:
+            return 1.
+        return ch
 
 
 # TODO: handle more colorspaces, and arbitrary extra channels.
@@ -185,21 +191,22 @@ class BaseColor(object):
         lib.sanpera_pixel_to_doubles(pixel, array)
 
         # Okay, yes, this isn't much of a classmethod.  TODO?
-        return RGBColor(*array)
+        return RGBColor._from_c_array(array)
 
     def _populate_pixel(self, pixel):
         """Copy values to a PixelPacket."""
         rgb = self.rgb()
-        array = ffi.new("double[]", [rgb._red, rgb._green, rgb._blue, rgb._opacity])
-        lib.sanpera_pixel_from_doubles(pixel, array)
+        lib.sanpera_pixel_from_doubles(pixel, rgb._array)
         # TODO extra channels?
 
     def _populate_magick_pixel(self, pixel):
         """Copy values to a MagickPixelPacket."""
         rgb = self.rgb()
-        array = ffi.new("double[]", [rgb._red, rgb._green, rgb._blue, rgb._opacity])
-        lib.sanpera_magick_pixel_from_doubles(pixel, array)
+        lib.sanpera_magick_pixel_from_doubles(pixel, rgb._array)
         # TODO extra channels?
+        # TODO imagemagick code uses:
+        # SetMagickPixelPacket(image,start_color,(IndexPacket *) NULL, ptr)
+        # ... why the IndexPacket?  should i be using that?
 
 
     ### Special methods
@@ -223,12 +230,21 @@ class BaseColor(object):
 
 
 class RGBColor(BaseColor):
-    def __init__(self, red, green, blue, opacity=1.0):
+    def __init__(self, red, green, blue, opacity=1.0, _array=None):
         self._red = red
         self._green = green
         self._blue = blue
         self._opacity = opacity
         self._extra_channels = ()
+
+        if _array is None:
+            self._array = ffi.new("double[]", [red, green, blue, opacity])
+        else:
+            self._array = _array
+
+    @classmethod
+    def _from_c_array(cls, array):
+        return cls(*array, _array=array)
 
     def __repr__(self):
         return "<RGBColor {0:0.3f} red, {1:0.3f} green, {2:0.3f} blue ({3}) {4:0.1f}% opacity>".format(
@@ -249,6 +265,20 @@ class RGBColor(BaseColor):
 
     def __rmul__(self, factor):
         return self.__mul__(factor)
+
+    def __add__(self, other):
+        # TODO this is also what IM's fx syntax does; maybe a little less
+        # sensible than multiplication even.
+        # TODO type check
+        # TODO extra channels
+        return RGBColor(
+            self._red + other,
+            self._green + other,
+            self._blue + other,
+            self._opacity)
+
+    def __sub__(self, other):
+        return self + (-other)
 
     def clamped(self):
         return RGBColor(
@@ -281,9 +311,26 @@ class RGBColor(BaseColor):
         return self
 
     def hsl(self):
-        hue, light, sat = colorsys.rgb_to_hls(self._red, self._green, self._blue)
+        hue, light, sat = colorsys.rgb_to_hls(
+            _clamp(self._red), _clamp(self._green), _clamp(self._blue))
         # TODO extra channels
         return HSLColor(hue, sat, light, self._opacity)
+
+
+class CMYKColor(BaseColor):
+    def __init__(self, cyan, magenta, yellow, black, alpha=1.0):
+        self.cyan = cyan
+        self.magenta = magenta
+        self.yellow = yellow
+        self.black = black
+        self.alpha = alpha
+
+    def rgb(self):
+        return RGBColor(
+            1 - self.cyan - self.black,
+            1 - self.magenta - self.black,
+            1 - self.yellow - self.black,
+            self.alpha)
 
 
 class HSLColor(BaseColor):
