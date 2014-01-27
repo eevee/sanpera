@@ -58,6 +58,9 @@ from sanpera.image import ImageFrame
 # - write some example python implementations of existing filters, e.g. simple
 #   resizing/compositing.  or maybe Usage has some already as -fx expressions
 
+# - make tests run both C and Python filters, where possible
+# - consider writing a PIL compat layer, and/or being PEP whatever compatible
+
 
 # ------------------------------------------------------------------------------
 # Built-in filters, i.e., filters provided fairly directly by ImageMagick that
@@ -205,8 +208,6 @@ class python_image_filter(object):
                 # loop runs for every fucking pixel, i'd like to avoid method
                 # calls as much as possible.  even that rgb() can add up
                 rgb = ret.rgb()
-                if y == 0:
-                    print("from", state._color, "to", ret)
                 lib.sanpera_pixel_from_doubles_channel(q, rgb._array, c_channel)
 
                 # XXX this is actually black

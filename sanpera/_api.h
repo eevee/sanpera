@@ -477,6 +477,7 @@ typedef enum {
 
 
 struct _Image {
+    ClassType storage_class;
 
     MagickBooleanType matte;
 
@@ -485,12 +486,22 @@ struct _Image {
     size_t depth;
     size_t colors;
 
+    PixelPacket *colormap;
+
     RectangleInfo page;
 
     char magick[];
     char filename[];
 
     ExceptionInfo exception;
+
+    Image *previous;
+    Image *list;
+    Image *next;
+
+    ImageType type;
+
+    void *cache;
 
     ...;
 };

@@ -6,6 +6,7 @@
 # TODO threadsafety?
 # TODO check boolean return values more often
 # TODO really, really want to be able to dump out an image or info struct.  really.
+from __future__ import print_function
 
 from sanpera._api import ffi, lib
 from sanpera.color import RGBColor
@@ -45,6 +46,7 @@ class PixelViewPixel(object):
 
 def _cache_view_destructor(cache_view):
     with magick_try() as exc:
+        # TODO bool return value as well
         lib.SyncCacheViewAuthenticPixels(cache_view, exc.ptr)
         lib.DestroyCacheView(cache_view)
 
@@ -70,6 +72,32 @@ class PixelView(object):
         array = ffi.new("double[]", 4)
         lib.sanpera_pixel_to_doubles(px, array)
         return RGBColor(*array)
+
+    def __setitem__(self, point, color):
+        """Set a single pixel to a given color.
+
+        This is "slow", in the sense that you probably don't want to do this to
+        edit every pixel in an entire image.
+        """
+        point = Vector.coerce(point)
+        rgb = color.rgb()
+
+        # TODO retval is t/f
+        with magick_try() as exc:
+            # Surprise!  GetOneCacheViewAuthenticPixel doesn't actually respect
+            # writes, even though the docs explicitly says it does.
+            # So get a view of this single pixel instead.
+            px = lib.GetCacheViewAuthenticPixels(
+                self._ptr, point.x, point.y, 1, 1, exc.ptr)
+            exc.check(px == ffi.NULL)
+
+        array = ffi.new("double[]", [rgb._red, rgb._green, rgb._blue, rgb._opacity])
+        lib.sanpera_pixel_from_doubles(px, array)
+        #print(repr(ffi.buffer(ffi.cast("char*", ffi.cast("void*", px)), 16)[:]))
+
+        with magick_try() as exc:
+            assert lib.SyncCacheViewAuthenticPixels(self._ptr, exc.ptr)
+
 
 
     def __iter__(self):
@@ -115,6 +143,6 @@ class PixelView(object):
             finally:
                 # TODO check return value
                 with magick_try() as exc:
-                    lib.SyncCacheViewAuthenticPixels(self._ptr, exc.ptr)
+                    assert lib.SyncCacheViewAuthenticPixels(self._ptr, exc.ptr)
 
 

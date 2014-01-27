@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from sanpera._api import ffi, lib
+import contextlib
 
+from sanpera._api import ffi, lib
 from sanpera.color import RGBColor
 from sanpera.exception import EmptyImageError
 from sanpera.exception import MissingFormatError
@@ -26,22 +27,66 @@ def blank_magick_pixel():
 
 
 class ImageFrame(object):
-    """Represents a single frame, and knows how to perform most operations on
-    it.
+    """Represents a single frame of an image (i.e. all the pixel data), and
+    knows how to perform most operations on it.
+
+    Frames are mutable and, like most objects in Python, are never copied
+    implicitly.  It's perfectly valid to put the same frame in more than one
+    `Image`, for example.  If you want a copy, ask for it explicitly with
+    `ImageFrame.copy()`.
     """
 
     def __init__(self, _raw_frame):
-        # nb: Even though this object acts merely as a view to a frame of an
-        # existing Image, the frame might persist after the image is destroyed,
-        # so we need to use ImageMagick's refcounting
-        lib.ReferenceImage(_raw_frame)
-        self._frame = ffi.gc(_raw_frame, lib.DestroyImage)
+        # This class has ultimate ownership of each Image pointer, so do the gc
+        # stuff here.
+        _frame = self._frame = ffi.gc(_raw_frame, lib.DestroyImage)
+
+        # New frames need their filenames blanked, lest ImageMagick decide
+        # to ignore our pleas and write to the same file
+        _frame.filename[0] = b'\0'
+        # ...yeah this too
+        #_frame.magick[0] = b'\0'
+
+        # Sometimes a new image's "page" is 0x0, which is totally bogus
+        if _frame.page.width == 0 or _frame.page.height == 0:
+            _frame.page.width = _frame.columns
+            _frame.page.height = _frame.rows
+
+        # TODO other page problems are possible, especially when adopting new frames
+        # TODO possibly should keep the page size the same across all frames; makes no sense otherwise
+        # TODO frames may also have different colorspace, matte, palette...  this is problematic
+
+    def copy(self):
+        """Returns a lazy copy of this frame.  Pixel data is not copied until
+        either this or the new frame are modified.
+        """
+        # 0, 0 => size; 0x0 means to reuse the same pixel cache
+        # 1 => orphan; clear the previous/next pointers, detach i/o stream
+        with magick_try() as exc:
+            cloned_frame = lib.CloneImage(self._frame, 0, 0, 1, exc.ptr)
+            exc.check(cloned_frame == ffi.NULL)
+
+        return type(self)(cloned_frame)
+
+    ### Internal hackery
+
+    def _fix_for_rgba_codec(self):
+        # Older versions of ImageMagick spit out garbage for the alpha channel
+        # when writing an alphaless image as "rgba".
+        if not self._frame.matte:
+            lib.SetImageAlphaChannel(self._frame, lib.OpaqueAlphaChannel)
+            magick_raise(self._frame.exception)
+
+    ### Frame properties
 
     @property
     def canvas(self):
         """Dimensions and offset of the drawable area of this frame, relative
         to the image's full size.
         """
+        # TODO is it really relative to the image's full size?  what if the
+        # frames disagree on what the "page" is?  it should be the first
+        # frame's page, but we can't see that from here  :(
         return Rectangle(
             self._frame.page.x,
             self._frame.page.y,
@@ -127,9 +172,26 @@ class ImageFrame(object):
 
 
 
+def _assert_is_frame(self, value):
+    if not isinstance(value, ImageFrame):
+        raise TypeError("expected ImageFrame, got {0!r}".format(value))
+
+
 class Image(object):
-    """An image.  If you don't know what this is, you may be using the wrong
-    library.
+    """An image.  Images contain no pixel data themselves; they're actually
+    (mutable) sequences of `ImageFrame` objects.  Most list operations work on
+    `Image`, though the contents must be frames.
+
+    Working with single-frame images is slightly more tedious, as you must use
+    ``image[0]`` to do interesting things to pixels, but this approach results
+    in fewer surprises when your carefully-crafted image pipeline is suddenly
+    fed a GIF.
+
+    Image *metadata* remains on the `Image`; this includes the original file
+    format, color mode (indexed or not), JPEG metadata, PNG comments, and the
+    like.  Writing out an image makes a best effort to preserve all of this,
+    even when writing out to a different format.  See `Image.write` for further
+    details on how to control output.
     """
 
     ### Constructors (input)
@@ -139,19 +201,20 @@ class Image(object):
         you want; consider using `Image.new()` instead.
         """
         # The _c_stack argument is for internal use and is expected to be a
-        # wrapped GC'd pointer to an Image.  Please don't dick around with it.
+        # pointer to an Image.  Please don't dick around with it.
+        # TODO: it's remotely possible to have a memory leak if a Python
+        # exception happens BETWEEN the creation of the Image* and the call to
+        # this function.  but i can only gc() pointers on the outside with
+        # DestroyImageList, which I can't undo later when trying to split the
+        # list into frames.  unclear what to do about this, if anything even
+        # needs doing at all.
         if _c_stack is None:
-            self._stack = ffi.NULL
+            self._frames = []
         else:
-            # Blank out the filename so IM doesn't try to write to it later
-            _c_stack.filename[0] = b'\0'
-
-            self._stack = _c_stack
-
-        self._frames = []
-        self._setup_frames()
-
-        self._fix_page()
+            # Rather than rely on ImageMagick, internally store the frames as a
+            # list of ImageFrame objects, each of which has ownership of its
+            # pointer
+            self._frames = self._image_list_to_frames(_c_stack)
 
     @classmethod
     def new(cls, size, fill=None):
@@ -167,9 +230,7 @@ class Image(object):
 
         fill._populate_magick_pixel(magick_pixel)
 
-        ptr = ffi.gc(
-            lib.NewMagickImage(image_info, size.width, size.height, magick_pixel),
-            lib.DestroyImageList)
+        ptr = lib.NewMagickImage(image_info, size.width, size.height, magick_pixel)
         magick_raise(ptr.exception)
 
         return cls(ptr)
@@ -181,9 +242,7 @@ class Image(object):
             image_info.file = ffi.cast("FILE *", fh)
 
             with magick_try() as exc:
-                ptr = ffi.gc(
-                    lib.ReadImage(image_info, exc.ptr),
-                    lib.DestroyImageList)
+                ptr = lib.ReadImage(image_info, exc.ptr)
                 exc.check(ptr == ffi.NULL)
 
         return cls(ptr)
@@ -202,8 +261,9 @@ class Image(object):
         assert isinstance(buf, bytes)
 
         image_info = blank_image_info()
+        c_buf = ffi.cast("void *", ffi.cast("char *", buf))
         with magick_try() as exc:
-            ptr = lib.BlobToImage(image_info, ffi.cast("void *", ffi.cast("char *", buf)), len(buf), exc.ptr)
+            ptr = lib.BlobToImage(image_info, c_buf, len(buf), exc.ptr)
             exc.check(ptr == ffi.NULL)
 
         return cls(ptr)
@@ -222,48 +282,17 @@ class Image(object):
         image_info.filename = name.encode('ascii')[:lib.MaxTextExtent]
 
         with magick_try() as exc:
-            ptr = ffi.gc(
-                lib.ReadImage(image_info, exc.ptr),
-                lib.DestroyImageList)
+            ptr = lib.ReadImage(image_info, exc.ptr)
             exc.check(ptr == ffi.NULL)
 
-        # Blank out the magick format just in case ImageMagick decides to write
-        # to it later
-        ptr.magick[0] = b'\0'
-
         return cls(ptr)
-
-    def _setup_frames(self, start=None):
-        # Shared by constructors to read the frame list out of the new image
-
-        if start:
-            p = start
-        else:
-            p = self._stack
-
-        while p:
-            self._frames.append(ImageFrame(p))
-            p = lib.GetNextImageInList(p)
-
-    def _fix_page(self):
-        """Sometimes, the page is 0x0.  This is totally bogus.  Fix it."""
-        for frame in self._frames:
-            c_frame = frame._frame
-            if c_frame.page.width == 0 or c_frame.page.height == 0:
-                c_frame.page.width = c_frame.columns
-                c_frame.page.height = c_frame.rows
-
-        # TODO other page problems are possible, especially when adopting new frames
-        # TODO possibly should keep the page size the same across all frames; makes no sense otherwise
-        # TODO frames may also have different colorspace, matte, palette...  this is problematic
-        # TODO should this live on ImageFrame perhaps?
 
     ### Output
     # XXX for all of these: check that the target format supports the number of images!
     # TODO support the wacky sprintf style of dumping images out i guess
 
     def write(self, filename, format=None):
-        if self._stack == ffi.NULL:
+        if not self._frames:
             raise EmptyImageError
 
         with open(filename, "wb") as fh:
@@ -278,16 +307,17 @@ class Image(object):
                 # Make sure not to overflow the char[]
                 # TODO maybe just error out when this happens
                 image_info.magick = format.encode('ascii')[:lib.MaxTextExtent]
-            elif self._stack.magick[0] == b'\0':
+            elif self._frames[0]._frame.magick[0] == b'\0':
                 # Uhoh; no format provided and nothing given by caller
                 raise MissingFormatError
             # TODO detect format from filename if explicitly asked to do so
 
-            lib.WriteImage(image_info, self._stack)
-            magick_raise(self._stack.exception)
+            with self._link_frames(self._frames) as ptr:
+                lib.WriteImage(image_info, ptr)
+                magick_raise(ptr.exception)
 
     def to_buffer(self, format=None):
-        if self._stack == ffi.NULL:
+        if not self._frames:
             raise EmptyImageError
 
         image_info = blank_image_info()
@@ -297,9 +327,9 @@ class Image(object):
         image_info.adjoin = lib.MagickTrue
 
         # Stupid hack to fix a bug in the rgb codec
-        if format == 'rgba' and not self._stack.matte:
-            lib.SetImageAlphaChannel(self._stack, lib.OpaqueAlphaChannel)
-            magick_raise(self._stack.exception)
+        if format == 'rgba':
+            for frame in self._frames:
+                frame._fix_for_rgba_codec()
 
         if format:
             # If the caller provided an explicit format, pass it along
@@ -311,9 +341,10 @@ class Image(object):
             raise MissingFormatError
 
         with magick_try() as exc:
-            cbuf = ffi.gc(
-                lib.ImagesToBlob(image_info, self._stack, length, exc.ptr),
-                lib.RelinquishMagickMemory)
+            with self._link_frames(self._frames) as ptr:
+                cbuf = ffi.gc(
+                    lib.ImagesToBlob(image_info, ptr, length, exc.ptr),
+                    lib.RelinquishMagickMemory)
 
         return ffi.buffer(cbuf, length[0])
 
@@ -321,12 +352,71 @@ class Image(object):
 
     ### Sequence operations
 
-    def __len__(self):
-        # TODO just use len(self._frames)?
-        return lib.GetImageListLength(self._stack)
+    def _image_list_to_frames(self, images):
+        # Given an Image* of presumably bare pointers, return a list of
+        # ImageFrames.
+        frames = []
+        p = images
 
-    def __nonzero__(self):
-        return self._stack != ffi.NULL
+        while p:
+            frames.append(ImageFrame(p))
+            p = lib.GetNextImageInList(p)
+
+        self._break_frame_pointers(frames)
+
+        return frames
+
+    def _break_frame_pointers(self, frames):
+        # Given a list of ImageFrames, break the links between them, to prevent
+        # having any unintended links get written out later -- or, worse, to
+        # leave dangling pointers when frames are rearranged
+        for frame in frames:
+            frame._frame.previous = ffi.NULL
+            frame._frame.next = ffi.NULL
+
+            # Some ImageMagick codecs feel free to mess with this, which makes
+            # lots of image operations then not work at all.  Charming!
+            # TODO this should probably not be so blunt, so indexed images are
+            # actually handled correctly...  when they're handled correctly at
+            # all, hm.
+            # TODO also, it appears ImageMagick doesn't set this correctly when
+            # /loading/ an image, hence never having this as a problem before.
+            frame._frame.storage_class = lib.DirectClass
+
+    @contextlib.contextmanager
+    def _link_frames(self, frames):
+        # Temporarily add previous/next links to the list of frames, turning
+        # them into an ImageList that ImageMagick will understand.
+        # It's important to do this ONLY temporarily, lest we end up with
+        # dangling pointers.
+        # Yields a pointer to the head of the list.
+        if not frames:
+            yield ffi.NULL
+            return
+
+        pointers = [frame._frame for frame in frames]
+
+        for one, two in zip(pointers, pointers[1:]):
+            one.next = two
+            two.previous = one
+
+        pointers[0].previous = ffi.NULL
+        pointers[-1].next = ffi.NULL
+
+        try:
+            yield pointers[0]
+        finally:
+            self._break_frame_pointers(frames)
+
+
+
+    def __len__(self):
+        return len(self._frames)
+
+    def __bool__(self):
+        return bool(self._frames)
+
+    __nonzero__ = __bool__
 
     def __iter__(self):
         return iter(self._frames)
@@ -334,42 +424,37 @@ class Image(object):
     def __getitem__(self, key):
         return self._frames[key]
 
-    # TODO
-    #def __setitem__(self, key, value):
+    def __setitem__(self, key, value):
+        _assert_is_frame(value)
+        self._frames[key] = value
 
+    # TODO stop mucking with ._frame so much and just add methods to Frame
     # TODO turn all this stuff into a single get/set slice interface?
-    def append(self, other):
-        """Appends a copy of the given frame to this image."""
-        # 0, 0 => size; 0x0 means to reuse the same pixel cache
-        # 1 => orphan; clear the previous/next pointers
-        with magick_try() as exc:
-            cloned_frame = lib.CloneImage(other._frame, 0, 0, 1, exc.ptr)
-
-        lib.AppendImageToList(self._stack, cloned_frame)
-        self._frames.append(ImageFrame(cloned_frame))
+    def append(self, value):
+        """Appends a frame to the end of this image."""
+        _assert_is_frame(value)
+        self._frames.append(value)
 
     def extend(self, other):
-        """Appends a copy of each of the given image's frames to this image."""
-        with magick_try() as exc:
-            cloned_stack = lib.CloneImageList(other._stack, exc.ptr)
-
-        lib.AppendImageToList(self._stack, cloned_stack)
-        self._setup_frames(cloned_stack)
-
-    def consume(self, other):
-        """Similar to `extend`, but also removes the frames from the other
-        image, leaving it empty.  The advantage is that the frames don't need
-        to be copied, so this is a little more efficient when loading many
-        separate images and operating on them as a whole, as with `convert`.
+        """Adds a sequence of frames (perhaps another `Image`) to the end of
+        this image.
         """
-        lib.AppendImageToList(self._stack, other._stack)
-        self._frames.extend(other._frames)
-
-        other._stack = ffi.NULL
-        other._frames = []
+        # The other sequence might be a generator, so avoid looping over it
+        # twice
+        append = self._frames.append
+        for value in other:
+            _assert_is_frame(value)
+            append(value)
 
 
     ### Properties
+
+    # TODO remove me
+    @property
+    def _stack(self):
+        return self._frames[0]._frame
+
+    # XXX this stuff is clearly broken
 
     # TODO critically important: how do these work with multiple images!
     # TODO read the convert usage a bit more carefully; there seems to be some deliberate difference in behavior between "bunch of images" and "bunch of frames".  for that matter, how DOES convert treat stuff like this?
@@ -382,6 +467,9 @@ class Image(object):
     def size(self):
         """The image dimensions, as a `Size`.  Empty images have zero size.
 
+        Some image formats support a canvas offset, in which case this value
+        may not match the actual drawable area.  See `ImageFrame.canvas`.
+
         Note that multi-frame images don't have a notion of intrinsic size for
         the entire image, though particular formats may enforce that every
         frame be the same size.  If the image has multiple frames, this returns
@@ -389,14 +477,16 @@ class Image(object):
         software.
         """
 
-        # Note that this doesn't use the rows+columns; the size of the
-        # ENTIRE IMAGE is the size of the virtual canvas.
-        # TODO the canvas might be different between different frames!  see
-        # if this happens on load, try to preserve it with operations
-        if self._stack == ffi.NULL:
+        if self._frames:
+            _frame = self._frames[0]._frame
+            # Note that this doesn't use .rows/.columns, as those are the size
+            # of the pixel area.  The "page" is the size of the canvas, which
+            # is the size of the image itself.
+            # TODO the canvas might be different between different frames!  see
+            # if this happens on load, try to preserve it with operations
+            return Size(_frame.page.width, _frame.page.height)
+        else:
             return Size(0, 0)
-
-        return Size(self._stack.page.width, self._stack.page.height)
 
     @property
     def has_canvas(self):
@@ -409,7 +499,9 @@ class Image(object):
 
     @bit_depth.setter
     def bit_depth(self, value):
-        self._stack.depth = value
+        # TODO i'm increasingly inclined to think this should be read off the
+        # image on read and written back to the top frame on write.
+        self._frames[0]._frame.depth = value
 
     # TODO this will have to become a proxy thing for it to support assignment
     # TODO i am not a huge fan of this name, but 'metadata' is too expansive
