@@ -47,10 +47,10 @@ def _get_formats():
             lib.RelinquishMagickMemory)
 
     for i in range(num_formats[0]):
-        name = ffi.string(magick_infos[i].name).decode('ascii')
+        name = ffi.string(magick_infos[i].name).decode('latin-1')
         formats[name.lower()] = ImageFormat(
             name=name,
-            description=ffi.string(magick_infos[i].description).decode('ascii'),
+            description=ffi.string(magick_infos[i].description).decode('latin-1'),
             can_read=magick_infos[i].decoder != ffi.NULL,
             can_write=magick_infos[i].encoder != ffi.NULL,
             supports_frames=magick_infos[i].adjoin != 0,
