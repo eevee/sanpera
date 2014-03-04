@@ -261,9 +261,8 @@ class Image(object):
         assert isinstance(buf, bytes)
 
         image_info = blank_image_info()
-        c_buf = ffi.cast("void *", ffi.cast("char *", buf))
         with magick_try() as exc:
-            ptr = lib.BlobToImage(image_info, c_buf, len(buf), exc.ptr)
+            ptr = lib.BlobToImage(image_info, buf, len(buf), exc.ptr)
             exc.check(ptr == ffi.NULL)
 
         return cls(ptr)
