@@ -1,5 +1,5 @@
 from sanpera.geometry import Size, origin
-from sanpera.image import builtins
+from sanpera.image import Image, builtins
 
 
 def test_cropped_canvas_fixing():
@@ -19,3 +19,10 @@ def test_cropped_canvas_fixing_large_crop():
 
     assert cropped.size == size
     assert cropped[0].canvas == size.at(origin)
+
+
+def test_appending_to_an_empty_image():
+    img = Image()
+    img.append(builtins.rose[0])
+
+    assert img.size == builtins.rose.size

@@ -172,7 +172,7 @@ class ImageFrame(object):
 
 
 
-def _assert_is_frame(self, value):
+def _assert_is_frame(value):
     if not isinstance(value, ImageFrame):
         raise TypeError("expected ImageFrame, got {0!r}".format(value))
 
