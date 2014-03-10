@@ -98,7 +98,7 @@ with open(os.path.join(here, '_api.h')) as f_headers:
 
 
 extension_kwargs = {}
-if os.environ.get('SANPERA_BUILD', '').lower().startswith('y'):
+if os.environ.get('SANPERA_BUILD'):
     extension_kwargs = find_imagemagick_configuration()
 
 
