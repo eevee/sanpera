@@ -11,7 +11,7 @@ def demo_program():
         print "Reading %s ..." % (fn,)
         #img = Image.from_filename(fn)
         #img = Image.from_buffer(open(fn).read())
-        img = Image.read(open(fn))
+        img = Image.read(fn)
         print " %lu frames" % (len(img),)
         images.extend(img)
 
@@ -19,7 +19,7 @@ def demo_program():
         raise IOError("Failed to read any images!")
 
     # Create a thumbnail image sequence
-    thumbnails = images.resize(106, 80)
+    thumbnails = images.resized((106, 80))
     del img
     del images
 
