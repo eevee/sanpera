@@ -564,20 +564,15 @@ class Image(object):
             frame_width = int(p.columns * ratio_width + 0.5)
             frame_height = int(p.rows * ratio_height + 0.5)
 
-            # ImageMagick, brilliant as it is, does not scale non-linear colorspaces
-            # correctly. This definitely affects sRGB (see Issue-23) and may affect
-            # other colorspaces. The "helpful" solution is to preconvert to linear RGB,
-            # and postconvert to the original value. See also:
+            # Imagemagick seems to consider sRGB (nonlinear) to be the default colorspace
+            # for images without colorspace information. In doing so, it might mangle colors
+            # during some operations which expect a linear colorspace. It also seems to prefer
+            # sRGB as output, rather than using the input colorspace.
+            # See also:
             # http://www.imagemagick.org/script/color-management.php
 
             inputImage = p
             with magick_try() as exc:
-                 # Assume ImageMagick will do the dumbest possible thing to non-RGB spaces.
-                 # TODO: But maybe we can trust it a bit more?                
-                if p.colorspace != lib.RGBColorspace:
-                    inputImage = lib.CloneImage(p, 0, 0, 0, exc.ptr)
-                    lib.TransformImageColorspace(inputImage, lib.RGBColorspace)
-
                 if c_filter == lib.BoxFilter:
                     # Use the faster ScaleImage in this special case
                     new_frame = lib.ScaleImage(
@@ -587,7 +582,7 @@ class Image(object):
                         inputImage, frame_width, frame_height,
                         c_filter, 1.0, exc.ptr)
 
-                if new_frame.colorspace != p.colorspace:
+                if new_frame.colorspace != p.colorspace and p.colorspace != lib.UndefinedColorspace:
                     lib.TransformImageColorspace(new_frame, p.colorspace)
 
             if inputImage != p:
