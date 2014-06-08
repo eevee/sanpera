@@ -33,8 +33,8 @@ def find_imagemagick_configuration():
     env_ldflags = os.environ.get('SANPERA_IMAGEMAGICK_LDFLAGS')
     if env_cflags is not None or env_ldflags is not None:
         return dict(
-            extra_compile_args=env_cflags or '',
-            extra_link_args=env_ldflags or '',
+            extra_compile_args=shlex.split(env_cflags or ''),
+            extra_link_args=shlex.split(env_ldflags or ''),
         )
 
     # Easy way: pkg-config, part of freedesktop
