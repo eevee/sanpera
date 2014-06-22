@@ -1,1 +1,1 @@
-include LICENSE
+include LICENSE sanpera/_api.c sanpera/_api.h
