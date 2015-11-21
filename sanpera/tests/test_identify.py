@@ -9,7 +9,7 @@ def test_identify_size():
     img = Image.read(util.find_image('eye.gif'))
 
     assert len(img) == 1, "one frame"
-    assert img.original_format == 'GIF', "image is a gif"  # XXX this should be a magick format object
+    assert img.original_format == b'GIF', "image is a gif"  # XXX this should be a magick format object
     assert img.size == Size(32, 32), "dimensions are 32x32"
 
     frame = img[0]
