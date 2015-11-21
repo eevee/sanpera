@@ -42,8 +42,8 @@ def find_imagemagick_configuration():
     # but it's just a tiny wrapper around `pkg-config`, so why it even exists
     # is a bit of a mystery.
     try:
-        compile_args = check_output(['pkg-config', 'ImageMagick', '--cflags'])
-        link_args = check_output(['pkg-config', 'ImageMagick', '--libs'])
+        compile_args = check_output(['pkg-config', 'ImageMagick', '--cflags']).decode('utf-8')
+        link_args = check_output(['pkg-config', 'ImageMagick', '--libs']).decode('utf-8')
     except OSError:
         pass
     except CalledProcessError:
