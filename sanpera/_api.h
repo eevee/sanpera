@@ -192,6 +192,7 @@ typedef void (*FatalErrorHandler)(const ExceptionType, const char *, const char 
 typedef void (*WarningHandler)(const ExceptionType, const char *, const char *);
 
 ExceptionInfo *AcquireExceptionInfo(void);
+void ClearMagickException(ExceptionInfo *);
 ExceptionInfo *DestroyExceptionInfo(ExceptionInfo *);
 FatalErrorHandler SetFatalErrorHandler(FatalErrorHandler);
 ErrorHandler SetErrorHandler(ErrorHandler);

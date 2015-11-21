@@ -28,6 +28,9 @@ class MagickExceptionContext(object):
             lib.AcquireExceptionInfo(),
             lib.DestroyExceptionInfo)
 
+    def clear(self):
+        lib.ClearMagickException(self.ptr)
+
     def check(self, condition):
         magick_raise(self.ptr, force=condition)
 

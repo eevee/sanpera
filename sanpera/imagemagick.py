@@ -45,6 +45,11 @@ def _get_formats():
         magick_infos = ffi.gc(
             lib.GetMagickInfoList(b"*", num_formats, exc.ptr),
             lib.RelinquishMagickMemory)
+        # Sometimes this call can generate an exception (such as a module not
+        # being loadable) but then succeed anyway and return a useful value, in
+        # which case we want to ignore the exception
+        if magick_infos != ffi.NULL:
+            exc.clear()
 
     for i in range(num_formats[0]):
         name = ffi.string(magick_infos[i].name).decode('latin-1')
