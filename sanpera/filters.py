@@ -347,8 +347,9 @@ class compiled_image_filter(object):
         c_frames = ffi.new("Image *[]", [f._frame for f in frames] + [ffi.NULL])
 
         with magick_try() as exc:
-            new_frame = ffi.gc(
-                lib.sanpera_evaluate_filter(c_frames, steps, c_channel, exc.ptr),
-                lib.DestroyImageList)
+            # TODO can this raise an exception /but also/ return a new value?
+            # is that a thing i should be handling better
+            new_frame = lib.sanpera_evaluate_filter(
+                c_frames, steps, c_channel, exc.ptr)
 
         return Image(new_frame)
