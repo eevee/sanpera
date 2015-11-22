@@ -539,10 +539,6 @@ typedef enum {
     ...
 } ResolutionType;
 
-typedef enum {
-    ...
-} PrimaryInfo;
-
 typedef struct {
     double x1;
     double y1;
@@ -553,10 +549,6 @@ typedef struct {
 typedef enum {
     ...
 } TransmitType;
-
-typedef enum {
-    ...
-} ChromaticityInfo;
 
 
 struct _Image {

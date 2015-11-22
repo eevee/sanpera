@@ -1,6 +1,8 @@
-"""ImageMagick API bindings, for cffi."""
+"""ImageMagick API bindings, for cffi.
 
-import atexit
+This file builds _api.so, which contains the actual bindings.
+"""
+
 import os.path
 import shlex
 import subprocess
@@ -74,35 +76,19 @@ def find_imagemagick_configuration():
 # FFI setup
 
 ffi = cffi.FFI()
-
 here = os.path.dirname(__file__)
+extension_kwargs = find_imagemagick_configuration()
 
 # For the sake of sanity and syntax highlighting, the C-ish parts are in
 # separate files with appropriate extensions.
+with open(os.path.join(here, '_api_extra.c')) as f_stub:
+    ffi.set_source(
+        'sanpera._api',
+        f_stub.read(),
+        **extension_kwargs)
 with open(os.path.join(here, '_api.h')) as f_headers:
     ffi.cdef(f_headers.read())
 
 
-extension_kwargs = {}
-if os.environ.get('SANPERA_BUILD'):
-    extension_kwargs = find_imagemagick_configuration()
-
-
-with open(os.path.join(here, '_api.c')) as f_stub:
-    lib = ffi.verify(
-        f_stub.read(),
-        ext_package='sanpera',
-        modulename='_api_bridge',
-        **extension_kwargs)
-
-# ImageMagick initialization
-lib.MagickCoreGenesis(sys.argv[0].encode('ascii'), lib.MagickFalse)
-
-# Teardown
-atexit.register(lib.MagickCoreTerminus)
-
-# Disable the default warning/error behavior, which is to spew garbage to
-# stderr (how considerate)
-lib.SetWarningHandler(ffi.NULL)
-lib.SetErrorHandler(ffi.NULL)
-lib.SetFatalErrorHandler(ffi.NULL)
+if __name__ == '__main__':
+    ffi.compile()

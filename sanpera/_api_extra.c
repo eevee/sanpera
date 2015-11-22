@@ -1,3 +1,6 @@
+// Extra C code, not part of the ImageMagick API, but handy for interoperating
+// with it.
+
 #include <stdio.h>
 #include <magick/MagickCore.h>
 
