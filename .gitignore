@@ -13,3 +13,7 @@ MANIFEST
 /*.egg
 
 /doc/_build
+
+# cffi build artifacts
+/sanpera/_api.c
+/sanpera/_api.o
